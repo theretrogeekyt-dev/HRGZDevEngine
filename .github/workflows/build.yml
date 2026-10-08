@@ -249,13 +249,15 @@ jobs:
           path: build/test_results/
 
   #--------------------------------------------------------------------------
-  # 5. Automated GitHub Release Packaging (Triggered on Tags: v*)
+  # 5. Automated GitHub Release Packaging
   #--------------------------------------------------------------------------
   release:
     name: Publish GitHub Release
     needs: [build-macos, build-windows, build-dos, test-and-verify]
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Download macOS Artifact
         uses: actions/download-artifact@v4
@@ -277,15 +279,18 @@ jobs:
         with:
           name: HRGZDevEngine-DOOM-Linux-SDL2
 
-      - name: Create GitHub Release
+      - name: Create or Update GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'latest' }}
+          name: ${{ startsWith(github.ref, 'refs/tags/v') && format('Release {0}', github.ref_name) || 'Latest Automated Build' }}
           files: |
             HRGZDevEngine-DOOM-macOS.zip
             HRGZDevEngine-DOOM-Windows.zip
             HRGZDevEngine-DOOM-DOS.zip
             HRGZDevEngine-DOOM-Linux-SDL2.zip
           draft: false
-          prerelease: false
+          prerelease: ${{ !startsWith(github.ref, 'refs/tags/v') }}
           generate_release_notes: true
+
 
