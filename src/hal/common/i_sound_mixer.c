@@ -197,3 +197,43 @@ void I_Mixer_Mix(int16_t* output_buffer, int samples_to_mix)
     }
 }
 
+void I_Mixer_Mix8(uint8_t* output_buffer, int samples_to_mix)
+{
+    if (!output_buffer || samples_to_mix <= 0) return;
+
+    memset(output_buffer, 128, samples_to_mix); // 128 = silence in unsigned 8-bit PCM
+
+    if (master_sfx_volume == 0) return;
+
+    for (int s = 0; s < samples_to_mix; s++)
+    {
+        int32_t acc = 0;
+
+        for (int c = 0; c < MIXER_MAX_CHANNELS; c++)
+        {
+            mixer_channel_t* ch = &channels[c];
+            if (!ch->active) continue;
+
+            uint32_t sample_idx = ch->position >> 16;
+            if (sample_idx >= ch->length)
+            {
+                ch->active = false;
+                continue;
+            }
+
+            int32_t sample = (int32_t)ch->data[sample_idx] - 128;
+            int vol = (ch->vol_left + ch->vol_right) / 2;
+            acc += (sample * vol * master_sfx_volume);
+
+            ch->position += ch->step;
+        }
+
+        // Scale and add bias of 128
+        int32_t out = (acc / (15 * 16)) + 128;
+        if (out > 255) out = 255;
+        else if (out < 0) out = 0;
+
+        output_buffer[s] = (uint8_t)out;
+    }
+}
+

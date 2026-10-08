@@ -95,6 +95,7 @@ CORE_SRCS=(
 COMMON_SRCS=(
     src/hal/common/i_sound_mixer.c
     src/hal/common/i_mus2midi.c
+    src/hal/common/i_net_ip.c
 )
 
 MAC_SRCS=(
@@ -118,6 +119,8 @@ DOS_SRCS=(
     src/hal/dos/i_system_dos.c
     src/hal/dos/i_video_dos.c
     src/hal/dos/i_sound_dos.c
+    src/hal/dos/i_sb_dos.c
+    src/hal/dos/i_opl_dos.c
     src/hal/dos/i_net_dos.c
 )
 
@@ -246,6 +249,7 @@ if [ -n "${WIN_CC}" ]; then
         -Isrc/hal/common \
         -lgdi32 \
         -lwinmm \
+        -lws2_32 \
         -lm \
         -s \
         -o "${WIN_BIN}"

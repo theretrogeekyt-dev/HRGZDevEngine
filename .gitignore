@@ -7,9 +7,9 @@ obj/
 *.obj
 *.exe
 *.EXE
-doom
-doom_test
-DOOM.EXE
+/doom
+/doom_test
+/DOOM.EXE
 
 # Temporary test screenshots and logs
 *.ppm

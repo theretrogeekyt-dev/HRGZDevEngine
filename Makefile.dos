@@ -86,6 +86,8 @@ DOS_SRCS = \
 	src/hal/dos/i_system_dos.c \
 	src/hal/dos/i_video_dos.c \
 	src/hal/dos/i_sound_dos.c \
+	src/hal/dos/i_sb_dos.c \
+	src/hal/dos/i_opl_dos.c \
 	src/hal/dos/i_net_dos.c
 
 SRCS = $(CORE_SRCS) $(COMMON_SRCS) $(DOS_SRCS)

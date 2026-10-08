@@ -2,39 +2,21 @@
 //-----------------------------------------------------------------------------
 //
 // DESCRIPTION:
-//	DOOM network interface for Modern Windows (loopback single-player stub).
+//	Modern Windows network driver linking to unified IP (UDP) engine.
 //
 //-----------------------------------------------------------------------------
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 #include "doomdef.h"
-#include "doomstat.h"
 #include "d_net.h"
-#include "i_system.h"
 #include "i_net.h"
+#include "../common/i_net_ip.h"
 
 void I_InitNetwork(void)
 {
-    doomcom = (doomcom_t*)malloc(sizeof(*doomcom));
-    memset(doomcom, 0, sizeof(*doomcom));
-
-    doomcom->id = DOOMCOM_ID;
-    doomcom->numplayers = 1;
-    doomcom->numnodes = 1;
-    doomcom->consoleplayer = 0;
-    doomcom->ticdup = 1;
-    doomcom->extratics = 0;
-    netgame = false;
+    I_Net_Init();
 }
 
 void I_NetCmd(void)
 {
-    if (doomcom->command == CMD_SEND)
-    {
-        doomcom->remotenode = 0;
-    }
+    I_Net_Cmd();
 }
-

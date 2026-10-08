@@ -39,6 +39,7 @@ int  I_Mixer_SoundIsPlaying(int handle);
 void I_Mixer_UpdateSoundParams(int handle, int vol, int sep, int pitch);
 void I_Mixer_SetMasterVolume(int volume); // 0 to 15
 void I_Mixer_Mix(int16_t* output_buffer, int samples_to_mix); // interleaved stereo 16-bit
+void I_Mixer_Mix8(uint8_t* output_buffer, int samples_to_mix); // mono 8-bit unsigned (128 = silence)
 
 #endif // __I_SOUND_MIXER_H__
 
