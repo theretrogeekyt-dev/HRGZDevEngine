@@ -1,0 +1,26 @@
+# Build directories and outputs
+build/
+build_cmake/
+bin/
+obj/
+*.o
+*.obj
+*.exe
+*.EXE
+doom
+doom_test
+DOOM.EXE
+
+# Temporary test screenshots and logs
+*.ppm
+test_frame*.png
+*.log
+
+# Reference repository
+doom_reference/
+
+# Editor and OS files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
