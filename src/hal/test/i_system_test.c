@@ -17,6 +17,7 @@
 #include "i_system.h"
 #include "i_video.h"
 #include "i_sound.h"
+#include "i_gamepad.h"
 #include "m_argv.h"
 
 static struct timeval start_time;
@@ -65,10 +66,9 @@ int I_GetTime(void)
     return (int)((sec * 1000000 + usec) * 35 / 1000000);
 }
 
-ticcmd_t emptycmd_test;
 ticcmd_t* I_BaseTiccmd(void)
 {
-    return &emptycmd_test;
+    return I_Gamepad_BaseTiccmd();
 }
 
 void I_Quit(void)

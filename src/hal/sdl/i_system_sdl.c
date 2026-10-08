@@ -15,6 +15,7 @@
 #include "i_system.h"
 #include "i_video.h"
 #include "i_sound.h"
+#include "i_gamepad.h"
 #include "m_argv.h"
 
 static uint32_t sdl_start_ticks = 0;
@@ -65,10 +66,9 @@ int I_GetTime(void)
     return (int)((elapsed_ms * 35) / 1000);
 }
 
-ticcmd_t emptycmd_sdl;
 ticcmd_t* I_BaseTiccmd(void)
 {
-    return &emptycmd_sdl;
+    return I_Gamepad_BaseTiccmd();
 }
 
 void I_Quit(void)

@@ -14,11 +14,14 @@
 #import <Carbon/Carbon.h>
 #import <Metal/Metal.h>
 #import <QuartzCore/CAMetalLayer.h>
+#import <GameController/GameController.h>
 #import <simd/simd.h>
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "i_gamepad.h"
 
 #include "doomdef.h"
 #include "doomstat.h"
@@ -516,6 +519,8 @@ void I_InitGraphics(void)
         mouse_captured = true;
     }
 
+    I_Gamepad_Init();
+
     graphics_inited = true;
 }
 
@@ -726,6 +731,62 @@ void I_StartTic(void)
             D_PostEvent(&ev);
             accum_mouse_dx = 0;
             accum_mouse_dy = 0;
+        }
+    }
+
+    // Poll Apple GameController (DualShock 4, DualSense PS5, Xbox Series/One/Elite)
+    @autoreleasepool {
+        GCController* controller = [GCController current];
+        if (!controller)
+        {
+            NSArray<GCController*>* all_controllers = [GCController controllers];
+            if (all_controllers.count > 0)
+            {
+                controller = all_controllers.firstObject;
+            }
+        }
+
+        if (controller && controller.extendedGamepad)
+        {
+            GCExtendedGamepad* pad = controller.extendedGamepad;
+            gamepad_state_t pad_state;
+            memset(&pad_state, 0, sizeof(pad_state));
+            pad_state.connected = 1;
+
+            pad_state.left_stick_x  = pad.leftThumbstick.xAxis.value;
+            pad_state.left_stick_y  = pad.leftThumbstick.yAxis.value;
+            pad_state.right_stick_x = pad.rightThumbstick.xAxis.value;
+            pad_state.right_stick_y = pad.rightThumbstick.yAxis.value;
+
+            pad_state.left_trigger  = pad.leftTrigger.value;
+            pad_state.right_trigger = pad.rightTrigger.value;
+
+            if (pad.buttonA.isPressed) pad_state.buttons |= PAD_BTN_A;
+            if (pad.buttonB.isPressed) pad_state.buttons |= PAD_BTN_B;
+            if (pad.buttonX.isPressed) pad_state.buttons |= PAD_BTN_X;
+            if (pad.buttonY.isPressed) pad_state.buttons |= PAD_BTN_Y;
+
+            if (pad.leftShoulder.isPressed)  pad_state.buttons |= PAD_BTN_LB;
+            if (pad.rightShoulder.isPressed) pad_state.buttons |= PAD_BTN_RB;
+
+            if (pad.buttonMenu.isPressed) pad_state.buttons |= PAD_BTN_START;
+            if (pad.buttonOptions && pad.buttonOptions.isPressed) pad_state.buttons |= PAD_BTN_BACK;
+
+            if (pad.leftThumbstickButton && pad.leftThumbstickButton.isPressed)
+                pad_state.buttons |= PAD_BTN_L3;
+            if (pad.rightThumbstickButton && pad.rightThumbstickButton.isPressed)
+                pad_state.buttons |= PAD_BTN_R3;
+
+            if (pad.dpad.up.isPressed)    pad_state.buttons |= PAD_BTN_DPAD_UP;
+            if (pad.dpad.down.isPressed)  pad_state.buttons |= PAD_BTN_DPAD_DN;
+            if (pad.dpad.left.isPressed)  pad_state.buttons |= PAD_BTN_DPAD_LF;
+            if (pad.dpad.right.isPressed) pad_state.buttons |= PAD_BTN_DPAD_RT;
+
+            I_Gamepad_Update(&pad_state);
+        }
+        else
+        {
+            I_Gamepad_Update(NULL);
         }
     }
 }

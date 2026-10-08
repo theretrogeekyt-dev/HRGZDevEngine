@@ -31,6 +31,7 @@ jobs:
             src/doom/*.c src/hal/common/*.c src/hal/mac/*.c src/hal/mac/*.m \
             -Isrc/doom -Isrc/hal/common \
             -framework Cocoa -framework Metal -framework QuartzCore \
+            -framework GameController \
             -framework AudioToolbox -framework CoreFoundation -framework Carbon \
             -lm -o build/mac/doom_mac
 
@@ -162,6 +163,10 @@ jobs:
       - name: Run In-Game Menu UI Playsim Verification (120 Frames)
         run: |
           ./build/test/doom_test -iwad doom1.wad -warp 1 1 -testframes 120 -testmenu
+
+      - name: Run Gamepad Playsim Verification (120 Frames)
+        run: |
+          ./build/test/doom_test -iwad doom1.wad -warp 1 1 -testframes 120 -testgamepad
 
       - name: Build Linux SDL2 DOOM Executable
         run: |

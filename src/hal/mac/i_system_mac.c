@@ -16,6 +16,7 @@
 #include "i_system.h"
 #include "i_video.h"
 #include "i_sound.h"
+#include "i_gamepad.h"
 #include "m_argv.h"
 
 static uint64_t start_mach_time = 0;
@@ -64,10 +65,9 @@ int I_GetTime(void)
     return (int)((elapsed_ns * 35) / 1000000000ULL);
 }
 
-ticcmd_t emptycmd_mac;
 ticcmd_t* I_BaseTiccmd(void)
 {
-    return &emptycmd_mac;
+    return I_Gamepad_BaseTiccmd();
 }
 
 void I_Quit(void)

@@ -17,6 +17,7 @@
 #include "i_system.h"
 #include "i_video.h"
 #include "i_sound.h"
+#include "i_gamepad.h"
 #include "m_argv.h"
 
 static LARGE_INTEGER qpc_freq;
@@ -84,10 +85,9 @@ int I_GetTime(void)
 #endif
 }
 
-ticcmd_t emptycmd_win;
 ticcmd_t* I_BaseTiccmd(void)
 {
-    return &emptycmd_win;
+    return I_Gamepad_BaseTiccmd();
 }
 
 void I_Quit(void)

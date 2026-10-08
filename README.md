@@ -52,16 +52,17 @@ HRGZDevEngine/
 │   │   ├── w_wad.c        # WAD filesystem and lump cache management
 │   │   └── ...
 │   └── hal/               # Hardware Abstraction Layer (HAL)
-│       ├── common/        # Shared software sound mixer, MUS-to-MIDI, and IP networking
+│       ├── common/        # Shared software sound mixer, MUS-to-MIDI, IP net, and Gamepad driver
 │       │   ├── i_sound_mixer.c / .h
 │       │   ├── i_mus2midi.c / .h
-│       │   └── i_net_ip.c / .h
-│       ├── mac/           # Native macOS driver (Metal HW accel, Cocoa, AudioToolbox MIDI)
+│       │   ├── i_net_ip.c / .h
+│       │   └── i_gamepad.c / .h   # Unified Xbox & PlayStation controller driver
+│       ├── mac/           # Native macOS driver (Metal HW accel, Cocoa, GameController, AudioToolbox)
 │       │   ├── i_video_mac.m
 │       │   ├── i_sound_mac.m
 │       │   ├── i_system_mac.c
 │       │   └── ...
-│       ├── win32/         # Pure Windows driver (OpenGL HW accel, GDI fallback, WinMM, Winsock)
+│       ├── win32/         # Pure Windows driver (OpenGL HW accel, GDI fallback, WinMM, XInput, Winsock)
 │       │   ├── i_video_win.c
 │       │   ├── i_system_win.c
 │       │   ├── i_sound_win.c
@@ -85,8 +86,8 @@ HRGZDevEngine DOOM utilizes a unified **GitHub Actions CI/CD Pipeline** ([`.gith
 
 | Job | Environment | Output Artifact | Notes |
 |---|---|---|---|
-| **macOS Native** | `macos-latest` | `HRGZDevEngine-DOOM-macOS.zip` | Compiles native Metal + Cocoa + AudioToolbox binary and packages complete `DOOM.app` bundle |
-| **Windows Native** | `windows-latest` | `HRGZDevEngine-DOOM-Windows.zip` | Compiles native `doom.exe` via MinGW-w64 with Win32, OpenGL hardware acceleration, WinMM audio, and Winsock2 |
+| **macOS Native** | `macos-latest` | `HRGZDevEngine-DOOM-macOS.zip` | Compiles native Metal + Cocoa + GameController + AudioToolbox binary and packages complete `DOOM.app` bundle |
+| **Windows Native** | `windows-latest` | `HRGZDevEngine-DOOM-Windows.zip` | Compiles native `doom.exe` via MinGW-w64 with Win32, OpenGL hardware acceleration, XInput + DirectInput controllers, WinMM audio, and Winsock2 |
 | **Linux & Test Suite** | `ubuntu-latest` | `HRGZDevEngine-DOOM-Linux-SDL2.zip`<br>`Verification-Screenshots.zip` | Runs headless E1M1 playsim (150 frames), player movement (120 frames), and menu tests; compiles Linux `doom_sdl` binary |
 | **Release Publisher** | `ubuntu-latest` | GitHub Release Assets | Automatically attaches all platform zip archives and formatted changelog |
 
@@ -103,6 +104,7 @@ clang -O2 -std=c99 \
   src/doom/*.c src/hal/common/*.c src/hal/mac/*.c src/hal/mac/*.m \
   -Isrc/doom -Isrc/hal/common \
   -framework Cocoa -framework Metal -framework QuartzCore \
+  -framework GameController \
   -framework AudioToolbox -framework CoreFoundation -framework Carbon \
   -lm -o build/mac/doom_mac
 
@@ -174,6 +176,8 @@ gcc -O2 -std=c99 \
 
 ## Controls
 
+### Keyboard & Mouse
+
 | Action | Primary Key | Secondary / Mouse |
 |---|---|---|
 | **Move Forward** | `W` / `Up Arrow` | Mouse Up |
@@ -188,6 +192,29 @@ gcc -O2 -std=c99 \
 | **Automap** | `Tab` | - |
 | **Pause** | `Pause` | - |
 | **Main Menu** | `Escape` | - |
+
+### Controller Support (PlayStation & Xbox)
+
+HRGZDevEngine DOOM features native, zero-setup plug-and-play gamepad support with modern twin-stick FPS controls:
+- **macOS Native**: Apple `GameController.framework` (Bluetooth & USB DualSense, DualShock 4, Xbox Wireless, and Elite controllers).
+- **Windows Native**: Dynamic `XInput` for Xbox controllers + WinMM `joyGetPosEx` DirectInput for native PlayStation controllers.
+- **Linux Native**: Standard `SDL_GameController` mappings.
+
+| Action | PlayStation Controller (DualShock 4 / DualSense PS5) | Xbox Controller (Series X\|S / One / 360 / Elite) |
+|---|---|---|
+| **Move & Strafe** | Left Analog Stick (Full 360° Analog) | Left Analog Stick (Full 360° Analog) |
+| **Look & Turn** | Right Analog Stick (Smooth Sub-Pixel Curve) | Right Analog Stick (Smooth Sub-Pixel Curve) |
+| **Fire / Attack** | Right Trigger (`R2`) | Right Trigger (`RT`) |
+| **Sprint / Speed** | Left Trigger (`L2`) or `◯` (Circle) | Left Trigger (`LT`) or `B` Button |
+| **Open / Use / Activate** | `✕` (Cross) or `□` (Square) | `A` Button or `X` Button |
+| **Next Weapon** | Right Bumper (`R1`) | Right Bumper (`RB`) |
+| **Previous Weapon** | Left Bumper (`L1`) | Left Bumper (`LB`) |
+| **Toggle Always Run** | `L3` (Left Stick Click) | `LS` (Left Stick Click) |
+| **180° Quick Turn** | `R3` (Right Stick Click) | `RS` (Right Stick Click) |
+| **Automap Toggle** | `△` (Triangle) / Touchpad / Share | `Y` Button / View / Back |
+| **Options / Pause** | Options Button | Menu / Start Button |
+| **Quick Weapon Slots** | D-Pad (Up: Shotgun, Down: Chaingun, Left: Rockets/Plasma, Right: BFG/Chainsaw) | D-Pad (Up: Shotgun, Down: Chaingun, Left: Rockets/Plasma, Right: BFG/Chainsaw) |
+| **Menu Navigation** | D-Pad / Left Stick (`✕` Confirm, `◯` Back) | D-Pad / Left Stick (`A` Confirm, `B` Back) |
 
 ---
 

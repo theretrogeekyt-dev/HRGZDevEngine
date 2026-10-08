@@ -12,10 +12,13 @@
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <mmsystem.h>
 #include <GL/gl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "i_gamepad.h"
 
 #include "doomdef.h"
 #include "doomstat.h"
@@ -49,8 +52,155 @@ static uint32_t   argb_framebuffer[SCREENWIDTH * SCREENHEIGHT];
 static boolean    window_active = false;
 static boolean    mouse_captured = false;
 
-static int win_width = SCREENWIDTH * DEFAULT_SCALE;
-static int win_height = SCREENHEIGHT * DEFAULT_SCALE;
+// XInput dynamic structures
+typedef struct {
+    WORD wButtons;
+    BYTE bLeftTrigger;
+    BYTE bRightTrigger;
+    SHORT sThumbLX;
+    SHORT sThumbLY;
+    SHORT sThumbRX;
+    SHORT sThumbRY;
+} XINPUT_GAMEPAD_DOOM;
+
+typedef struct {
+    DWORD dwPacketNumber;
+    XINPUT_GAMEPAD_DOOM Gamepad;
+} XINPUT_STATE_DOOM;
+
+typedef DWORD (WINAPI *PFN_XInputGetState)(DWORD dwUserIndex, XINPUT_STATE_DOOM* pState);
+
+static HMODULE            h_xinput = NULL;
+static PFN_XInputGetState pfn_XInputGetState = NULL;
+
+static void Win32_InitGamepad(void)
+{
+    I_Gamepad_Init();
+
+    const char* dlls[] = { "xinput1_4.dll", "xinput1_3.dll", "xinput9_1_0.dll", NULL };
+    for (int i = 0; dlls[i] != NULL; i++)
+    {
+        h_xinput = LoadLibraryA(dlls[i]);
+        if (h_xinput)
+        {
+            pfn_XInputGetState = (PFN_XInputGetState)GetProcAddress(h_xinput, "XInputGetState");
+            if (pfn_XInputGetState)
+            {
+                printf("I_InitGraphics: Loaded %s for Xbox controller support\n", dlls[i]);
+                break;
+            }
+            FreeLibrary(h_xinput);
+            h_xinput = NULL;
+        }
+    }
+}
+
+static void Win32_PollGamepad(void)
+{
+    gamepad_state_t state;
+    memset(&state, 0, sizeof(state));
+    int found = 0;
+
+    // 1. Check XInput (Xbox controllers, or PlayStation via Steam/DS4Windows)
+    if (pfn_XInputGetState)
+    {
+        for (DWORD user = 0; user < 4; user++)
+        {
+            XINPUT_STATE_DOOM xs;
+            if (pfn_XInputGetState(user, &xs) == 0)
+            {
+                found = 1;
+                state.connected = 1;
+
+                state.left_stick_x  = (float)xs.Gamepad.sThumbLX / (xs.Gamepad.sThumbLX < 0 ? 32768.0f : 32767.0f);
+                state.left_stick_y  = (float)xs.Gamepad.sThumbLY / (xs.Gamepad.sThumbLY < 0 ? 32768.0f : 32767.0f);
+                state.right_stick_x = (float)xs.Gamepad.sThumbRX / (xs.Gamepad.sThumbRX < 0 ? 32768.0f : 32767.0f);
+                state.right_stick_y = (float)xs.Gamepad.sThumbRY / (xs.Gamepad.sThumbRY < 0 ? 32768.0f : 32767.0f);
+
+                state.left_trigger  = (float)xs.Gamepad.bLeftTrigger / 255.0f;
+                state.right_trigger = (float)xs.Gamepad.bRightTrigger / 255.0f;
+
+                WORD b = xs.Gamepad.wButtons;
+                if (b & 0x1000) state.buttons |= PAD_BTN_A;
+                if (b & 0x2000) state.buttons |= PAD_BTN_B;
+                if (b & 0x4000) state.buttons |= PAD_BTN_X;
+                if (b & 0x8000) state.buttons |= PAD_BTN_Y;
+
+                if (b & 0x0100) state.buttons |= PAD_BTN_LB;
+                if (b & 0x0200) state.buttons |= PAD_BTN_RB;
+
+                if (b & 0x0010) state.buttons |= PAD_BTN_START;
+                if (b & 0x0020) state.buttons |= PAD_BTN_BACK;
+
+                if (b & 0x0040) state.buttons |= PAD_BTN_L3;
+                if (b & 0x0080) state.buttons |= PAD_BTN_R3;
+
+                if (b & 0x0001) state.buttons |= PAD_BTN_DPAD_UP;
+                if (b & 0x0002) state.buttons |= PAD_BTN_DPAD_DN;
+                if (b & 0x0004) state.buttons |= PAD_BTN_DPAD_LF;
+                if (b & 0x0008) state.buttons |= PAD_BTN_DPAD_RT;
+
+                break;
+            }
+        }
+    }
+
+    // 2. DirectInput / WinMM fallback (Native PlayStation DualShock 4 / DualSense)
+    if (!found)
+    {
+        JOYINFOEX jie;
+        memset(&jie, 0, sizeof(jie));
+        jie.dwSize = sizeof(JOYINFOEX);
+        jie.dwFlags = JOY_RETURNALL;
+
+        for (UINT j = JOYSTICKID1; j <= JOYSTICKID2; j++)
+        {
+            if (joyGetPosEx(j, &jie) == JOYERR_NOERROR)
+            {
+                found = 1;
+                state.connected = 1;
+
+                state.left_stick_x  = ((float)jie.dwXpos - 32767.5f) / 32767.5f;
+                state.left_stick_y  = -((float)jie.dwYpos - 32767.5f) / 32767.5f;
+                state.right_stick_x = ((float)jie.dwZpos - 32767.5f) / 32767.5f;
+                state.right_stick_y = -((float)jie.dwRpos - 32767.5f) / 32767.5f;
+
+                state.left_trigger  = ((float)jie.dwUpos) / 65535.0f;
+                state.right_trigger = ((float)jie.dwVpos) / 65535.0f;
+
+                DWORD btns = jie.dwButtons;
+                if (btns & (1 << 0)) state.buttons |= PAD_BTN_X;        // PS Square
+                if (btns & (1 << 1)) state.buttons |= PAD_BTN_A;        // PS Cross
+                if (btns & (1 << 2)) state.buttons |= PAD_BTN_B;        // PS Circle
+                if (btns & (1 << 3)) state.buttons |= PAD_BTN_Y;        // PS Triangle
+                if (btns & (1 << 4)) state.buttons |= PAD_BTN_LB;       // PS L1
+                if (btns & (1 << 5)) state.buttons |= PAD_BTN_RB;       // PS R1
+                if (btns & (1 << 6)) state.left_trigger = 1.0f;         // PS L2
+                if (btns & (1 << 7)) state.right_trigger = 1.0f;        // PS R2
+                if (btns & (1 << 8)) state.buttons |= PAD_BTN_BACK;     // PS Share
+                if (btns & (1 << 9)) state.buttons |= PAD_BTN_START;    // PS Options
+                if (btns & (1 << 10)) state.buttons |= PAD_BTN_L3;      // PS L3
+                if (btns & (1 << 11)) state.buttons |= PAD_BTN_R3;      // PS R3
+
+                if (jie.dwPOV != 0xFFFF)
+                {
+                    if (jie.dwPOV == 0 || jie.dwPOV == 31500 || jie.dwPOV == 4500)
+                        state.buttons |= PAD_BTN_DPAD_UP;
+                    if (jie.dwPOV == 18000 || jie.dwPOV == 13500 || jie.dwPOV == 22500)
+                        state.buttons |= PAD_BTN_DPAD_DN;
+                    if (jie.dwPOV == 27000 || jie.dwPOV == 22500 || jie.dwPOV == 31500)
+                        state.buttons |= PAD_BTN_DPAD_LF;
+                    if (jie.dwPOV == 9000 || jie.dwPOV == 4500 || jie.dwPOV == 13500)
+                        state.buttons |= PAD_BTN_DPAD_RT;
+                }
+
+                break;
+            }
+        }
+    }
+
+    I_Gamepad_Update(found ? &state : NULL);
+}
 
 static int TranslateWinKey(WPARAM vk)
 {
@@ -295,6 +445,8 @@ void I_InitGraphics(void)
         printf("I_InitGraphics: OpenGL unavailable, using GDI StretchDIBits fallback\n");
     }
 
+    Win32_InitGamepad();
+
     UpdateWindow(hwnd_main);
 #endif
 }
@@ -328,6 +480,11 @@ void I_ShutdownGraphics(void)
     {
         DestroyWindow(hwnd_main);
         hwnd_main = NULL;
+    }
+    if (h_xinput)
+    {
+        FreeLibrary(h_xinput);
+        h_xinput = NULL;
     }
 #endif
     if (screens[0])
@@ -518,5 +675,7 @@ void I_StartTic(void)
             D_PostEvent(&ev);
         }
     }
+
+    Win32_PollGamepad();
 #endif
 }

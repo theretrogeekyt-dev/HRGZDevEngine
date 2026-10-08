@@ -18,6 +18,7 @@
 #include "v_video.h"
 #include "m_argv.h"
 #include "d_main.h"
+#include "i_gamepad.h"
 
 static byte current_palette[256 * 3];
 static int frame_count = 0;
@@ -28,6 +29,8 @@ void I_InitGraphics(void)
     screens[0] = (byte*)malloc(SCREENWIDTH * SCREENHEIGHT);
     if (!screens[0])
         I_Error("I_InitGraphics: Failed to allocate offscreen framebuffer");
+
+    I_Gamepad_Init();
 
     int p = M_CheckParm("-testframes");
     if (p && p < myargc - 1)
@@ -93,6 +96,11 @@ void I_FinishUpdate(void)
     if (M_CheckParm("-testmove") && frame_count == 80)
     {
         SavePPM("test_movement.ppm", screens[0], current_palette);
+    }
+
+    if (M_CheckParm("-testgamepad") && frame_count == 70)
+    {
+        SavePPM("test_gamepad.ppm", screens[0], current_palette);
     }
 
     if (frame_count >= max_test_frames)
@@ -180,6 +188,26 @@ void I_StartTic(void)
             D_PostEvent(&ev);
             ev.data1 = KEY_RIGHTARROW;
             D_PostEvent(&ev);
+        }
+    }
+
+    if (M_CheckParm("-testgamepad"))
+    {
+        if (frame_count >= 36 && frame_count <= 75)
+        {
+            gamepad_state_t pad;
+            memset(&pad, 0, sizeof(pad));
+            pad.connected = 1;
+            pad.left_stick_y = 0.9f;  // Move forward
+            pad.left_stick_x = 0.3f;  // Strafe right
+            pad.right_stick_x = 0.4f; // Look right
+            pad.right_trigger = (frame_count >= 50 && frame_count <= 65) ? 0.9f : 0.0f; // Fire weapon
+            if (frame_count == 40) pad.buttons |= PAD_BTN_L3; // Toggle sprint
+            I_Gamepad_Update(&pad);
+        }
+        else if (frame_count > 75)
+        {
+            I_Gamepad_Update(NULL);
         }
     }
 }

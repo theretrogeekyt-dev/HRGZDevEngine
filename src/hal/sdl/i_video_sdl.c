@@ -19,12 +19,28 @@
 #include "v_video.h"
 #include "m_argv.h"
 #include "d_main.h"
+#include "i_gamepad.h"
 
-static SDL_Window*   sdl_window = NULL;
-static SDL_Renderer* sdl_renderer = NULL;
-static SDL_Texture*  sdl_texture = NULL;
-static uint32_t      sdl_palette[256];
-static uint32_t      sdl_pixels[SCREENWIDTH * SCREENHEIGHT];
+static SDL_Window*         sdl_window = NULL;
+static SDL_Renderer*       sdl_renderer = NULL;
+static SDL_Texture*        sdl_texture = NULL;
+static SDL_GameController* sdl_controller = NULL;
+static uint32_t            sdl_palette[256];
+static uint32_t            sdl_pixels[SCREENWIDTH * SCREENHEIGHT];
+
+static void SDL_OpenController(int index)
+{
+    if (sdl_controller)
+        return;
+    if (SDL_IsGameController(index))
+    {
+        sdl_controller = SDL_GameControllerOpen(index);
+        if (sdl_controller)
+        {
+            printf("I_InitGraphics: Connected GameController: %s\n", SDL_GameControllerName(sdl_controller));
+        }
+    }
+}
 
 static int TranslateSDLKey(SDL_Keycode sym)
 {
@@ -131,6 +147,18 @@ void I_InitGraphics(void)
     {
         SDL_SetRelativeMouseMode(SDL_TRUE);
     }
+
+    SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER);
+    I_Gamepad_Init();
+
+    for (int i = 0; i < SDL_NumJoysticks(); i++)
+    {
+        if (SDL_IsGameController(i))
+        {
+            SDL_OpenController(i);
+            break;
+        }
+    }
 }
 
 void I_ShutdownGraphics(void)
@@ -149,6 +177,11 @@ void I_ShutdownGraphics(void)
     {
         SDL_DestroyWindow(sdl_window);
         sdl_window = NULL;
+    }
+    if (sdl_controller)
+    {
+        SDL_GameControllerClose(sdl_controller);
+        sdl_controller = NULL;
     }
     if (screens[0])
     {
@@ -298,10 +331,86 @@ void I_StartTic(void)
                 }
                 break;
             }
+            case SDL_CONTROLLERDEVICEADDED:
+                SDL_OpenController(e.cdevice.which);
+                break;
+            case SDL_CONTROLLERDEVICEREMOVED:
+                if (sdl_controller)
+                {
+                    SDL_Joystick* j = SDL_GameControllerGetJoystick(sdl_controller);
+                    if (SDL_JoystickInstanceID(j) == e.cdevice.which)
+                    {
+                        SDL_GameControllerClose(sdl_controller);
+                        sdl_controller = NULL;
+                    }
+                }
+                break;
             case SDL_QUIT:
                 I_Quit();
                 break;
         }
+    }
+
+    // Poll SDL_GameController
+    if (sdl_controller)
+    {
+        gamepad_state_t pad_state;
+        memset(&pad_state, 0, sizeof(pad_state));
+        pad_state.connected = 1;
+
+        Sint16 lx = SDL_GameControllerGetAxis(sdl_controller, SDL_CONTROLLER_AXIS_LEFTX);
+        Sint16 ly = SDL_GameControllerGetAxis(sdl_controller, SDL_CONTROLLER_AXIS_LEFTY);
+        Sint16 rx = SDL_GameControllerGetAxis(sdl_controller, SDL_CONTROLLER_AXIS_RIGHTX);
+        Sint16 ry = SDL_GameControllerGetAxis(sdl_controller, SDL_CONTROLLER_AXIS_RIGHTY);
+        Sint16 lt = SDL_GameControllerGetAxis(sdl_controller, SDL_CONTROLLER_AXIS_TRIGGERLEFT);
+        Sint16 rt = SDL_GameControllerGetAxis(sdl_controller, SDL_CONTROLLER_AXIS_TRIGGERRIGHT);
+
+        pad_state.left_stick_x  = (float)lx / (lx < 0 ? 32768.0f : 32767.0f);
+        pad_state.left_stick_y  = -((float)ly / (ly < 0 ? 32768.0f : 32767.0f)); // Invert SDL Y
+        pad_state.right_stick_x = (float)rx / (rx < 0 ? 32768.0f : 32767.0f);
+        pad_state.right_stick_y = -((float)ry / (ry < 0 ? 32768.0f : 32767.0f));
+
+        pad_state.left_trigger  = lt > 0 ? ((float)lt / 32767.0f) : 0.0f;
+        pad_state.right_trigger = rt > 0 ? ((float)rt / 32767.0f) : 0.0f;
+
+        if (SDL_GameControllerGetButton(sdl_controller, SDL_CONTROLLER_BUTTON_A))
+            pad_state.buttons |= PAD_BTN_A;
+        if (SDL_GameControllerGetButton(sdl_controller, SDL_CONTROLLER_BUTTON_B))
+            pad_state.buttons |= PAD_BTN_B;
+        if (SDL_GameControllerGetButton(sdl_controller, SDL_CONTROLLER_BUTTON_X))
+            pad_state.buttons |= PAD_BTN_X;
+        if (SDL_GameControllerGetButton(sdl_controller, SDL_CONTROLLER_BUTTON_Y))
+            pad_state.buttons |= PAD_BTN_Y;
+
+        if (SDL_GameControllerGetButton(sdl_controller, SDL_CONTROLLER_BUTTON_LEFTSHOULDER))
+            pad_state.buttons |= PAD_BTN_LB;
+        if (SDL_GameControllerGetButton(sdl_controller, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER))
+            pad_state.buttons |= PAD_BTN_RB;
+
+        if (SDL_GameControllerGetButton(sdl_controller, SDL_CONTROLLER_BUTTON_START))
+            pad_state.buttons |= PAD_BTN_START;
+        if (SDL_GameControllerGetButton(sdl_controller, SDL_CONTROLLER_BUTTON_BACK))
+            pad_state.buttons |= PAD_BTN_BACK;
+
+        if (SDL_GameControllerGetButton(sdl_controller, SDL_CONTROLLER_BUTTON_LEFTSTICK))
+            pad_state.buttons |= PAD_BTN_L3;
+        if (SDL_GameControllerGetButton(sdl_controller, SDL_CONTROLLER_BUTTON_RIGHTSTICK))
+            pad_state.buttons |= PAD_BTN_R3;
+
+        if (SDL_GameControllerGetButton(sdl_controller, SDL_CONTROLLER_BUTTON_DPAD_UP))
+            pad_state.buttons |= PAD_BTN_DPAD_UP;
+        if (SDL_GameControllerGetButton(sdl_controller, SDL_CONTROLLER_BUTTON_DPAD_DOWN))
+            pad_state.buttons |= PAD_BTN_DPAD_DN;
+        if (SDL_GameControllerGetButton(sdl_controller, SDL_CONTROLLER_BUTTON_DPAD_LEFT))
+            pad_state.buttons |= PAD_BTN_DPAD_LF;
+        if (SDL_GameControllerGetButton(sdl_controller, SDL_CONTROLLER_BUTTON_DPAD_RIGHT))
+            pad_state.buttons |= PAD_BTN_DPAD_RT;
+
+        I_Gamepad_Update(&pad_state);
+    }
+    else
+    {
+        I_Gamepad_Update(NULL);
     }
 }
 
