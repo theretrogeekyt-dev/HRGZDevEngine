@@ -42,10 +42,6 @@ rcsid[] = "$Id: w_wad.c,v 1.5 1997/02/03 16:47:57 b1 Exp $";
 #define strcmpi _stricmp
 #define strcasecmp _stricmp
 #define filelength _filelength
-#elif defined(__MSDOS__) || defined(MSDOS)
-#include <io.h>
-#include <unistd.h>
-#include <stdlib.h>
 #else
 #include <unistd.h>
 #include <alloca.h>
@@ -88,14 +84,12 @@ void**			lumpcache;
 #define strcmpi	strcasecmp
 #endif
 
-#if !defined(_WIN32) && !defined(__DJGPP__) && !defined(__MSDOS__) && !defined(MSDOS)
+#if !defined(_WIN32)
 void strupr (char* s)
 {
     while (*s) { *s = toupper(*s); s++; }
 }
-#endif
 
-#if !defined(_WIN32) && !defined(__MSDOS__) && !defined(MSDOS)
 int filelength (int handle) 
 { 
     struct stat	fileinfo;

@@ -6,14 +6,8 @@ obj/
 *.o
 *.obj
 *.exe
-*.EXE
 /doom
 /doom_test
-/DOOM.EXE
-
-# Whitelist bundled toolchain binaries and DPMI server
-!toolchain/
-!toolchain/**
 
 # Temporary test screenshots and logs
 *.ppm

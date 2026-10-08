@@ -127,56 +127,7 @@ jobs:
           path: HRGZDevEngine-DOOM-Windows.zip
 
   #--------------------------------------------------------------------------
-  # 3. MS-DOS Mode 13h Protected Mode Build (DJGPP + CWSDPMI)
-  #--------------------------------------------------------------------------
-  build-dos:
-    name: MS-DOS (DJGPP Mode 13h)
-    runs-on: macos-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Install Rosetta 2 (if ARM64)
-        run: |
-          if [ "$(uname -m)" = "arm64" ]; then
-            softwareupdate --install-rosetta --agree-to-license || true
-          fi
-
-      - name: Setup DJGPP Toolchain Permissions
-        run: |
-          find toolchain/djgpp -type f -exec chmod +x {} + || true
-
-      - name: Cross-Compile DOOM for MS-DOS
-        run: |
-          mkdir -p build/dos
-          ./toolchain/djgpp/bin/i586-pc-msdosdjgpp-gcc -O2 -Wall -Wno-parentheses \
-            -Wno-unused-variable -Wno-misleading-indentation -Wno-format-overflow \
-            -std=gnu99 \
-            src/doom/*.c src/hal/common/i_sound_mixer.c src/hal/common/i_mus2midi.c \
-            src/hal/common/i_net_ip.c src/hal/dos/*.c \
-            -Isrc/doom -Isrc/hal/common \
-            -lm -s -o build/dos/DOOM.EXE
-
-      - name: Bundle DOS DPMI Host and WAD
-        run: |
-          cp toolchain/CWSDPMI.EXE build/dos/CWSDPMI.EXE
-          if [ -f "doom1.wad" ]; then
-            cp "doom1.wad" build/dos/DOOM1.WAD
-          fi
-
-      - name: Create MS-DOS Release Zip
-        run: |
-          cd build/dos
-          zip -r ../../HRGZDevEngine-DOOM-DOS.zip DOOM.EXE CWSDPMI.EXE DOOM1.WAD
-
-      - name: Upload MS-DOS Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: HRGZDevEngine-DOOM-DOS
-          path: HRGZDevEngine-DOOM-DOS.zip
-
-  #--------------------------------------------------------------------------
-  # 4. Linux Build & Automated Headless Playsim Test Suite
+  # 3. Linux Build & Automated Headless Playsim Test Suite
   #--------------------------------------------------------------------------
   test-and-verify:
     name: Linux & Headless Playsim Test Suite
@@ -249,16 +200,21 @@ jobs:
           path: build/test_results/
 
   #--------------------------------------------------------------------------
-  # 5. Automated GitHub Release Packaging
+  # 4. Automated GitHub Release Packaging & Changelog
   #--------------------------------------------------------------------------
   release:
     name: Publish GitHub Release
-    needs: [build-macos, build-windows, build-dos, test-and-verify]
+    needs: [build-macos, build-windows, test-and-verify]
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
+      - name: Checkout Repository History
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Download macOS Artifact
         uses: actions/download-artifact@v4
         with:
@@ -269,28 +225,71 @@ jobs:
         with:
           name: HRGZDevEngine-DOOM-Windows
 
-      - name: Download MS-DOS Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: HRGZDevEngine-DOOM-DOS
-
       - name: Download Linux Artifact
         uses: actions/download-artifact@v4
         with:
           name: HRGZDevEngine-DOOM-Linux-SDL2
 
+      - name: Generate Release Notes & Changelog
+        run: |
+          # Generate unique version starting with prefix 0.0.1
+          if [[ "${{ github.ref }}" == refs/tags/0.0.1* ]] || [[ "${{ github.ref }}" == refs/tags/v0.0.1* ]]; then
+            VER="${{ github.ref_name }}"
+          else
+            VER="0.0.1.${{ github.run_number }}"
+          fi
+
+          COMMIT_SHORT=$(git rev-parse --short HEAD)
+          TITLE="0.0.1.${{ github.run_number }} - Update (${COMMIT_SHORT})"
+
+          echo "RELEASE_TAG=$VER" >> $GITHUB_ENV
+          echo "RELEASE_TITLE=$TITLE" >> $GITHUB_ENV
+
+          cat << 'EOF' > release_notes.md
+          # HRGZDevEngine DOOM — Release
+
+          ### 📦 Platform Downloads
+          | Platform | Package | Driver Stack |
+          |---|---|---|
+          | 🍏 **macOS** | [`HRGZDevEngine-DOOM-macOS.zip`](https://github.com/${{ github.repository }}/releases/download/latest/HRGZDevEngine-DOOM-macOS.zip) | Metal HW Accel + Cocoa + AudioToolbox |
+          | 🪟 **Windows** | [`HRGZDevEngine-DOOM-Windows.zip`](https://github.com/${{ github.repository }}/releases/download/latest/HRGZDevEngine-DOOM-Windows.zip) | Win32 + OpenGL HW Accel + WinMM + Winsock2 |
+          | 🐧 **Linux** | [`HRGZDevEngine-DOOM-Linux-SDL2.zip`](https://github.com/${{ github.repository }}/releases/download/latest/HRGZDevEngine-DOOM-Linux-SDL2.zip) | SDL2 Driver + Software Audio Mixer |
+
+          ---
+
+          ### 📝 Changelog
+          #### Commits in this Build:
+          EOF
+
+          echo "" >> release_notes.md
+          git log -n 12 --pretty=format:"- **%s** ([%h](https://github.com/${{ github.repository }}/commit/%H))" --no-merges >> release_notes.md
+          echo "" >> release_notes.md
+
+          cat << 'EOF' >> release_notes.md
+
+          ---
+
+          ### ✨ Key Features
+          - **Hardware-Accelerated Rendering**: Native Apple Metal (macOS) and OpenGL (Windows) streaming presentation
+          - **16:9 True Widescreen**: 426x200 sub-pixel resolution with extended horizontal field of view
+          - **Frame Refresh & Clearing System**: Double-buffered frame clearing and tear-free vertical sync
+          - **Integrated IP Multiplayer**: UDP lobby system, peer-to-peer matchmaking, and in-game server hosting
+          - **Automated Validation**: Regression-tested against canonical E1M1 playsim frame suites
+          EOF
+
       - name: Create or Update GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'latest' }}
-          name: ${{ startsWith(github.ref, 'refs/tags/v') && format('Release {0}', github.ref_name) || 'Latest Automated Build' }}
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: ${{ env.RELEASE_TITLE }}
+          body_path: release_notes.md
           files: |
             HRGZDevEngine-DOOM-macOS.zip
             HRGZDevEngine-DOOM-Windows.zip
-            HRGZDevEngine-DOOM-DOS.zip
             HRGZDevEngine-DOOM-Linux-SDL2.zip
           draft: false
-          prerelease: ${{ !startsWith(github.ref, 'refs/tags/v') }}
-          generate_release_notes: true
+          prerelease: false
+          make_latest: true
+
 
 

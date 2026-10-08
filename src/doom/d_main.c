@@ -42,12 +42,6 @@ static const char rcsid[] = "$Id: d_main.c,v 1.8 1997/02/03 22:45:09 b1 Exp $";
 #include <io.h>
 #define access _access
 #define R_OK 4
-#elif defined(__MSDOS__) || defined(MSDOS)
-#include <io.h>
-#include <unistd.h>
-#ifndef R_OK
-#define R_OK 4
-#endif
 #else
 #include <unistd.h>
 #endif

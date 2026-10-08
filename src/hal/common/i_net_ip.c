@@ -11,8 +11,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if !defined(__MSDOS__) && !defined(MSDOS)
-
 #if defined(_WIN32)
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -635,36 +633,3 @@ void I_Net_Cmd(void)
     }
 }
 
-#else
-
-//
-// MS-DOS Stubs (DOS uses i_net_dos.c IPX driver)
-//
-#include "doomdef.h"
-#include "d_net.h"
-#include "i_net_ip.h"
-
-boolean I_Net_InitSockets(void) { return false; }
-void    I_Net_ShutdownSockets(void) {}
-boolean I_Net_HostGame(int max_players, int port, int skill, int episode, int map, int dm) { return false; }
-boolean I_Net_JoinGame(const char* host_ip, int port) { return false; }
-void    I_Net_CancelLobby(void) {}
-int     I_Net_HostLobbyTicker(void) { return 1; }
-boolean I_Net_ClientLobbyTicker(void) { return false; }
-boolean I_Net_HostLaunch(void) { return false; }
-net_state_t I_Net_GetState(void) { return NET_STATE_OFFLINE; }
-int     I_Net_GetConnectedCount(void) { return 1; }
-int     I_Net_GetMaxPlayers(void) { return 1; }
-const char* I_Net_GetHostStatusMsg(void) { return ""; }
-const char* I_Net_GetClientStatusMsg(void) { return ""; }
-const char* I_Net_GetLocalIP(void) { return "127.0.0.1"; }
-const char* I_Net_GetClientNodeIP(int node) { return "127.0.0.1"; }
-int     I_Net_GetClientNode(void) { return -1; }
-int     I_Net_GetGameSkill(void) { return 2; }
-int     I_Net_GetGameEpisode(void) { return 1; }
-int     I_Net_GetGameMap(void) { return 1; }
-int     I_Net_GetGameDeathmatch(void) { return 0; }
-void    I_Net_Init(void) {}
-void    I_Net_Cmd(void) {}
-
-#endif

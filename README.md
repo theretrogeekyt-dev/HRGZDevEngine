@@ -2,7 +2,7 @@
 
 A high-performance, cross-platform DOOM source port engineered for **HRGZDevEngine**, based on the canonical id Software 1993/1997 source code ([id-software/DOOM](https://github.com/id-software/DOOM)).
 
-Designed from the ground up to compile and run authentically on both **MS-DOS** (16/32-bit protected mode via DJGPP / Watcom) and **Modern Windows** (Win32 / Win64 with **zero external dependencies**), as well as modern POSIX systems via SDL2 and an automated headless verification test harness.
+Designed from the ground up for **Modern Windows** (Win32 / Win64 with **zero external dependencies**), **macOS** (Apple Metal hardware acceleration & Cocoa), and modern POSIX systems via SDL2 and an automated headless verification test harness.
 
 ---
 
@@ -11,22 +11,21 @@ Designed from the ground up to compile and run authentically on both **MS-DOS** 
 ### 1. Modern 64-Bit & Cross-Platform Engine Core (`src/doom/`)
 The original 1997 Linux release was riddled with 32-bit pointer assumptions, unaligned memory accesses, compiler-specific behaviors, and deprecated Unix headers. All have been systematically rectified:
 - **Zero Pointer Truncation**: Standardized on `<stdint.h>` (`intptr_t`, `uintptr_t`, `int32_t`, `int16_t`, `uint8_t`). Pointers are never cast to 32-bit integers.
-- **Fixed 64-Bit Pointer Array Allocations**: Fixed legacy DOS bugs in `r_data.c` and `p_setup.c` where pointer tables (`textures`, `texturecolumnlump`, `texturecolumnofs`, `texturecomposite`, `linebuffer`) were allocated assuming 4-byte pointers (`* 4`), which caused memory corruption on 64-bit architectures.
+- **Fixed 64-Bit Pointer Array Allocations**: Fixed legacy bugs in `r_data.c` and `p_setup.c` where pointer tables (`textures`, `texturecolumnlump`, `texturecolumnofs`, `texturecomposite`, `linebuffer`) were allocated assuming 4-byte pointers (`* 4`), which caused memory corruption on 64-bit architectures.
 - **Binary Struct Packing**: Explicit `#pragma pack(push, 1)` and `pop` applied across all binary WAD structures (`doomdata.h`, `w_wad.h`, `r_data.c`), guaranteeing byte-for-byte binary compatibility with vanilla WAD lumps regardless of compiler struct alignment defaults.
 - **Win32 Enum Conflict Safeguards**: Resolved conflicts between DOOM's boolean type (`boolean`) and Windows SDK `rpcndr.h`.
 - **Clean Configuration Subsystem**: Overhauled `m_misc.c` with explicit typed entries (`isstring`), eliminating unsafe pointer-to-integer casts when parsing `default.cfg`.
 - **Accurate Fixed-Point Math**: 64-bit integer accelerated `FixedDiv` and safely parenthesized endian-swapping macros in `m_swap.h`.
+- **16:9 Widescreen Renderer**: 426x200 true widescreen software rendering with sub-pixel accurate horizontal FOV expansion and double-buffered frame refreshing.
 
-### 2. Native MS-DOS Driver (`src/hal/dos/`)
-- **VGA Mode 13h (320x200 256-color)**: Authentic Mode 13h via BIOS `INT 10h`.
-- **Blitting**: High-performance near-pointer linear framebuffer blitting direct to `0xA0000` via `__djgpp_nearptr_enable()`, with automatic DPMI `dosmemput` fallback.
-- **VGA DAC Palette Programming**: Direct I/O port programming (`0x3C8` / `0x3C9`) synchronized with vertical retrace (`0x3DA`) for tear-free rendering.
-- **Low-Level Keyboard ISR**: Custom IRQ 1 / `INT 9h` interrupt handler providing true multi-key simultaneous rollover (strafe + run + fire + turn) without BIOS keyboard buffer beeps.
-- **Hardware Timer & Memory**: Microsecond-resolution timer via DJGPP `uclock()`, and DPMI heap management.
+### 2. Native macOS Driver (`src/hal/mac/`)
+- **Apple Metal Hardware Acceleration**: Zero-latency streaming texture presentation with triple-buffering via Metal and QuartzCore.
+- **Native Dual Audio**: 16-bit 11025 Hz software multichannel sound mixer and General MIDI playback streamed via macOS `AudioToolbox`.
+- **Packaged App Bundle**: Self-contained `DOOM.app` application bundle with embedded IWAD and high-resolution Retina display scaling.
 
 ### 3. Native Modern Windows Driver (`src/hal/win32/`)
 - **Zero External DLL Dependencies**: Runs out-of-the-box on Windows 95 through Windows 11 without requiring SDL, DirectX, OpenAL, or any runtime redistributable.
-- **Aspect-Correct GDI Blitter**: Hardware-accelerated desktop composition via `StretchDIBits` with 4:3 aspect ratio pillarboxing/letterboxing and integer scaling (`-scale 1` to `-scale 6`).
+- **OpenGL Hardware Acceleration**: High-performance WGL streaming texture upload with V-Sync and graceful GDI `StretchDIBits` fallback.
 - **Smooth Mouse Capture**: Windowed and fullscreen cursor confinement with relative motion turning.
 - **Native Dual Audio Subsystem**:
   - **Digital Sound Effects**: 16-bit 11025 Hz software multichannel mixer streamed via WinMM `waveOut`.
@@ -57,11 +56,6 @@ HRGZDevEngine/
 │       │   ├── i_sound_mixer.c / .h
 │       │   ├── i_mus2midi.c / .h
 │       │   └── i_net_ip.c / .h
-│       ├── dos/           # MS-DOS platform driver (Mode 13h, INT 9h ISR, DJGPP DPMI)
-│       │   ├── i_video_dos.c
-│       │   ├── i_system_dos.c
-│       │   ├── i_sound_dos.c
-│       │   └── ...
 │       ├── mac/           # Native macOS driver (Metal HW accel, Cocoa, AudioToolbox MIDI)
 │       │   ├── i_video_mac.m
 │       │   ├── i_sound_mac.m
@@ -74,7 +68,6 @@ HRGZDevEngine/
 │       │   └── ...
 │       ├── sdl/           # Cross-platform SDL2 driver (macOS, Linux, Windows)
 │       └── test/          # Headless automated verification test harness
-├── toolchain/             # Bundled DJGPP cross-compiler toolchain & CWSDPMI
 └── doom1.wad              # DOOM Shareware IWAD (v1.10) for testing
 ```
 
@@ -84,11 +77,9 @@ HRGZDevEngine/
 
 HRGZDevEngine DOOM utilizes a unified **GitHub Actions CI/CD Pipeline** ([`.github/workflows/build.yml`](.github/workflows/build.yml)) that automates building, testing, packaging, and releasing across all supported operating systems simultaneously.
 
-### Workflow Triggers
-- **Pushes** to `main` and `master`
-- **Pull Requests** targeting `main` and `master`
-- **Version Tags** (`v*`) automatically trigger multi-platform GitHub Releases
-- **Manual Execution**: Trigger directly from the GitHub repository via `Actions` → `Build & Release HRGZDevEngine DOOM` → `Run workflow`.
+### Release Versioning & Changelog
+- **Unique Versioning**: Every continuous release and tag automatically receives a unique version identifier prefixed with **`0.0.1`** (e.g. `0.0.1.4`, `0.0.1.5`).
+- **Automated Changelogs**: Every published release includes a comprehensive markdown changelog tracking recent commits, platform packages, and engine features.
 
 ### Automated Pipeline Jobs
 
@@ -96,9 +87,8 @@ HRGZDevEngine DOOM utilizes a unified **GitHub Actions CI/CD Pipeline** ([`.gith
 |---|---|---|---|
 | **macOS Native** | `macos-latest` | `HRGZDevEngine-DOOM-macOS.zip` | Compiles native Metal + Cocoa + AudioToolbox binary and packages complete `DOOM.app` bundle |
 | **Windows Native** | `windows-latest` | `HRGZDevEngine-DOOM-Windows.zip` | Compiles native `doom.exe` via MinGW-w64 with Win32, OpenGL hardware acceleration, WinMM audio, and Winsock2 |
-| **MS-DOS Protected Mode** | `macos-latest` | `HRGZDevEngine-DOOM-DOS.zip` | Cross-compiles `DOOM.EXE` with DJGPP GCC 12.2.0, bundled with `CWSDPMI.EXE` and `DOOM1.WAD` |
 | **Linux & Test Suite** | `ubuntu-latest` | `HRGZDevEngine-DOOM-Linux-SDL2.zip`<br>`Verification-Screenshots.zip` | Runs headless E1M1 playsim (150 frames), player movement (120 frames), and menu tests; compiles Linux `doom_sdl` binary |
-| **Release Publisher** | `ubuntu-latest` | GitHub Release Assets | Automatically attaches all platform zip archives when pushing a tag (`git tag v1.1.0 && git push origin v1.1.0`) |
+| **Release Publisher** | `ubuntu-latest` | GitHub Release Assets | Automatically attaches all platform zip archives and formatted changelog |
 
 ---
 
@@ -140,18 +130,7 @@ mkdir build\win
 cl /nologo /O2 /W3 /D_CRT_SECURE_NO_WARNINGS /Isrc\doom /Isrc\hal\common src\doom\*.c src\hal\common\*.c src\hal\win32\*.c /link gdi32.lib winmm.lib ws2_32.lib opengl32.lib /out:build\win\doom.exe
 ```
 
-### 3. MS-DOS Mode 13h (DJGPP)
-```bash
-mkdir -p build/dos
-./toolchain/djgpp/bin/i586-pc-msdosdjgpp-gcc -O2 -std=gnu99 \
-  src/doom/*.c src/hal/common/i_sound_mixer.c src/hal/common/i_mus2midi.c \
-  src/hal/common/i_net_ip.c src/hal/dos/*.c \
-  -Isrc/doom -Isrc/hal/common \
-  -lm -s -o build/dos/DOOM.EXE
-cp toolchain/CWSDPMI.EXE build/dos/
-```
-
-### 4. Linux (SDL2)
+### 3. Linux (SDL2)
 ```bash
 mkdir -p build/linux
 gcc -O2 -std=c99 \
