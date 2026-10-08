@@ -107,8 +107,11 @@ typedef enum
 // Defines suck. C sucks.
 // C++ might sucks for OOP, but it sure is a better C.
 // So there.
+#if defined(MSDOS) || defined(__DJGPP__)
 #define SCREENWIDTH  320
-//SCREEN_MUL*BASE_WIDTH //320
+#else
+#define SCREENWIDTH  426
+#endif
 #define SCREENHEIGHT 200
 //(int)(SCREEN_MUL*BASE_WIDTH*INV_ASPECT_RATIO) //200
 

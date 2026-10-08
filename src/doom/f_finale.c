@@ -584,8 +584,12 @@ void F_CastDrawer (void)
     boolean		flip;
     patch_t*		patch;
     
+    int x = (SCREENWIDTH - 320) / 2;
+    if (x > 0)
+        memset(screens[0], 0, SCREENWIDTH * SCREENHEIGHT);
+
     // erase the entire screen to a background
-    V_DrawPatch (0,0,0, W_CacheLumpName ("BOSSBACK", PU_CACHE));
+    V_DrawPatch (x,0,0, W_CacheLumpName ("BOSSBACK", PU_CACHE));
 
     F_CastPrint (castorder[castnum].name);
     
@@ -597,9 +601,9 @@ void F_CastDrawer (void)
 			
     patch = W_CacheLumpNum (lump+firstspritelump, PU_CACHE);
     if (flip)
-	V_DrawPatchFlipped (160,170,0,patch);
+	V_DrawPatchFlipped (SCREENWIDTH / 2,170,0,patch);
     else
-	V_DrawPatch (160,170,0,patch);
+	V_DrawPatch (SCREENWIDTH / 2,170,0,patch);
 }
 
 
@@ -709,25 +713,29 @@ void F_Drawer (void)
 	F_TextWrite ();
     else
     {
+	int x = (SCREENWIDTH - 320) / 2;
+	if (x > 0 && gameepisode != 3)
+	    memset(screens[0], 0, SCREENWIDTH * SCREENHEIGHT);
+
 	switch (gameepisode)
 	{
 	  case 1:
 	    if ( gamemode == retail )
-	      V_DrawPatch (0,0,0,
+	      V_DrawPatch (x,0,0,
 			 W_CacheLumpName("CREDIT",PU_CACHE));
 	    else
-	      V_DrawPatch (0,0,0,
+	      V_DrawPatch (x,0,0,
 			 W_CacheLumpName("HELP2",PU_CACHE));
 	    break;
 	  case 2:
-	    V_DrawPatch(0,0,0,
+	    V_DrawPatch(x,0,0,
 			W_CacheLumpName("VICTORY2",PU_CACHE));
 	    break;
 	  case 3:
 	    F_BunnyScroll ();
 	    break;
 	  case 4:
-	    V_DrawPatch (0,0,0,
+	    V_DrawPatch (x,0,0,
 			 W_CacheLumpName("ENDPIC",PU_CACHE));
 	    break;
 	}

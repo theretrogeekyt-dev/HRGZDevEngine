@@ -42,163 +42,138 @@ The original 1997 Linux release was riddled with 32-bit pointer assumptions, una
 
 ```
 HRGZDevEngine/
+├── .github/
+│   └── workflows/
+│       └── build.yml      # GitHub Actions CI/CD multi-platform build & release pipeline
 ├── src/
 │   ├── doom/              # Core DOOM playsim, software renderer, and game logic
 │   │   ├── doomdef.h      # Engine constants, types, and global structures
-│   │   ├── r_*.c / r_*.h  # 3D BSP software renderer (walls, floors, sprites, colormaps)
+│   │   ├── r_*.c / r_*.h  # 3D BSP software renderer (widescreen, sub-pixel accurate)
 │   │   ├── p_*.c / p_*.h  # Playsim, enemy AI, physics, line specials, sectors
 │   │   ├── w_wad.c        # WAD filesystem and lump cache management
 │   │   └── ...
 │   └── hal/               # Hardware Abstraction Layer (HAL)
-│       ├── common/        # Shared software sound mixer and MUS-to-MIDI converter
+│       ├── common/        # Shared software sound mixer, MUS-to-MIDI, and IP networking
 │       │   ├── i_sound_mixer.c / .h
-│       │   └── i_mus2midi.c / .h
+│       │   ├── i_mus2midi.c / .h
+│       │   └── i_net_ip.c / .h
 │       ├── dos/           # MS-DOS platform driver (Mode 13h, INT 9h ISR, DJGPP DPMI)
 │       │   ├── i_video_dos.c
 │       │   ├── i_system_dos.c
 │       │   ├── i_sound_dos.c
 │       │   └── ...
-│       ├── mac/           # Native macOS driver (Cocoa, CoreGraphics, AudioToolbox MIDI)
+│       ├── mac/           # Native macOS driver (Metal HW accel, Cocoa, AudioToolbox MIDI)
 │       │   ├── i_video_mac.m
 │       │   ├── i_sound_mac.m
 │       │   ├── i_system_mac.c
 │       │   └── ...
-│       ├── win32/         # Pure Windows platform driver (GDI StretchDIBits, WinMM wave/midi)
+│       ├── win32/         # Pure Windows driver (OpenGL HW accel, GDI fallback, WinMM, Winsock)
 │       │   ├── i_video_win.c
 │       │   ├── i_system_win.c
 │       │   ├── i_sound_win.c
 │       │   └── ...
 │       ├── sdl/           # Cross-platform SDL2 driver (macOS, Linux, Windows)
 │       └── test/          # Headless automated verification test harness
-├── scripts/
-│   ├── build_all.sh       # Unified master build script (builds ALL ports on macOS)
-│   ├── build_mac.sh       # Native macOS build & app packager
-│   ├── build_dos.bat      # Automated DOS / DOSBox DJGPP build script
-│   └── build_win32.bat    # Automated Windows build script (MSVC or MinGW)
-├── Makefile               # Top-level unified Makefile (all-ports, mac, win, dos, test)
-├── Makefile.dos           # DJGPP Makefile for MS-DOS (produces DOOM.EXE)
-├── Makefile.win           # MinGW Makefile for Windows (produces doom.exe)
-├── CMakeLists.txt         # Modern CMake build configuration
+├── toolchain/             # Bundled DJGPP cross-compiler toolchain & CWSDPMI
 └── doom1.wad              # DOOM Shareware IWAD (v1.10) for testing
 ```
 
 ---
 
-## Unified Multi-Platform Build (All Ports in One Go)
+## Automated Multi-Platform CI/CD (GitHub Actions)
 
-On macOS, you can build **all target platforms simultaneously** in a single command:
+HRGZDevEngine DOOM utilizes a unified **GitHub Actions CI/CD Pipeline** ([`.github/workflows/build.yml`](.github/workflows/build.yml)) that automates building, testing, packaging, and releasing across all supported operating systems simultaneously.
 
-```bash
-make
-# or:
-make all-ports
-# or directly:
-./scripts/build_all.sh
-```
+### Workflow Triggers
+- **Pushes** to `main` and `master`
+- **Pull Requests** targeting `main` and `master`
+- **Version Tags** (`v*`) automatically trigger multi-platform GitHub Releases
+- **Manual Execution**: Trigger directly from the GitHub repository via `Actions` → `Build & Release HRGZDevEngine DOOM` → `Run workflow`.
 
-This single command builds and packages:
-1. 🍏 **Native macOS Port**: `build/mac/doom_mac` and `build/DOOM.app`
-2. 🪟 **Modern Windows Port**: `build/win/doom.exe` and `build/doom_win.exe` (PE32+ 64-bit, zero DLLs)
-3. 💾 **MS-DOS Port**: `build/dos/DOOM.EXE` and `build/doom_dos.exe` (32-bit Mode 13h DPMI + `CWSDPMI.EXE`)
-4. 🧪 **Headless Test Runner**: `build/test/doom_test` (automated playsim & renderer verification)
+### Automated Pipeline Jobs
 
----
-
-### 1. macOS (Native Cocoa & AudioToolbox - Zero Dependencies!)
-
-Works out of the box on Apple Silicon (M1/M2/M3/M4) and Intel Macs running macOS 10.13 through macOS 15+. **No Homebrew or external libraries (SDL2) needed!**
-
-#### Quick Build:
-```bash
-make mac
-```
-*or using the script directly:*
-```bash
-./scripts/build_mac.sh
-```
-
-#### Run on macOS:
-```bash
-# Launch CLI executable:
-./build/doom_mac -iwad doom1.wad -scale 3
-
-# Or launch as a native macOS Application:
-open build/DOOM.app
-```
+| Job | Environment | Output Artifact | Notes |
+|---|---|---|---|
+| **macOS Native** | `macos-latest` | `HRGZDevEngine-DOOM-macOS.zip` | Compiles native Metal + Cocoa + AudioToolbox binary and packages complete `DOOM.app` bundle |
+| **Windows Native** | `windows-latest` | `HRGZDevEngine-DOOM-Windows.zip` | Compiles native `doom.exe` via MinGW-w64 with Win32, OpenGL hardware acceleration, WinMM audio, and Winsock2 |
+| **MS-DOS Protected Mode** | `macos-latest` | `HRGZDevEngine-DOOM-DOS.zip` | Cross-compiles `DOOM.EXE` with DJGPP GCC 12.2.0, bundled with `CWSDPMI.EXE` and `DOOM1.WAD` |
+| **Linux & Test Suite** | `ubuntu-latest` | `HRGZDevEngine-DOOM-Linux-SDL2.zip`<br>`Verification-Screenshots.zip` | Runs headless E1M1 playsim (150 frames), player movement (120 frames), and menu tests; compiles Linux `doom_sdl` binary |
+| **Release Publisher** | `ubuntu-latest` | GitHub Release Assets | Automatically attaches all platform zip archives when pushing a tag (`git tag v1.1.0 && git push origin v1.1.0`) |
 
 ---
 
-### 2. Modern Windows (Native Win32 - Zero Dependencies)
+## Local Direct Compilation (No Makefiles Required)
 
-#### Option A: Visual Studio / MSVC Developer Command Prompt
-Open the **x64 Native Tools Command Prompt for VS** and run:
+To compile locally without relying on legacy build systems or Makefiles, invoke your compiler directly:
+
+### 1. macOS (Native Metal & Cocoa — Zero Dependencies)
+```bash
+mkdir -p build/mac
+clang -O2 -std=c99 \
+  src/doom/*.c src/hal/common/*.c src/hal/mac/*.c src/hal/mac/*.m \
+  -Isrc/doom -Isrc/hal/common \
+  -framework Cocoa -framework Metal -framework QuartzCore \
+  -framework AudioToolbox -framework CoreFoundation -framework Carbon \
+  -lm -o build/mac/doom_mac
+
+# Run:
+./build/mac/doom_mac -iwad doom1.wad
+```
+
+### 2. Modern Windows (Native Win32 & OpenGL)
+#### MinGW-w64:
+```bash
+mkdir -p build/win
+gcc -O2 -std=c99 \
+  src/doom/*.c src/hal/common/*.c src/hal/win32/*.c \
+  -Isrc/doom -Isrc/hal/common \
+  -lgdi32 -lwinmm -lws2_32 -lopengl32 -lm -s \
+  -o build/win/doom.exe
+
+# Run:
+build\win\doom.exe -iwad doom1.wad
+```
+
+#### Microsoft Visual C++ (MSVC):
 ```cmd
-scripts\build_win32.bat
-```
-Or compile directly:
-```cmd
-cl /nologo /O2 /W3 /D_CRT_SECURE_NO_WARNINGS /Isrc\doom /Isrc\hal\common src\doom\*.c src\hal\common\*.c src\hal\win32\*.c /link gdi32.lib winmm.lib /out:doom.exe
+mkdir build\win
+cl /nologo /O2 /W3 /D_CRT_SECURE_NO_WARNINGS /Isrc\doom /Isrc\hal\common src\doom\*.c src\hal\common\*.c src\hal\win32\*.c /link gdi32.lib winmm.lib ws2_32.lib opengl32.lib /out:build\win\doom.exe
 ```
 
-#### Option B: MinGW-w64
-In PowerShell or CMD with MinGW in PATH:
-```cmd
-make -f Makefile.win
-```
-
-#### Run DOOM on Windows:
-```cmd
-doom.exe -iwad doom1.wad -scale 3
-```
-
----
-
-### 3. MS-DOS (DJGPP / FreeDOS / DOSBox)
-
-#### Prerequisites:
-- DJGPP (GCC 3.x, 4.x, or 5.x)
-- CWSDPMI.EXE in PATH or working directory
-
-#### Building under DOS / DOSBox:
-```bat
-scripts\build_dos.bat
-```
-Or directly:
-```bat
-make -f Makefile.dos
-```
-
-#### Run DOOM under DOS:
-```bat
-DOOM.EXE -iwad DOOM1.WAD
-```
-
----
-
-### 4. Headless Verification Test (Any System)
-
-To compile and verify the playsim, renderer, and texture generation without opening a window:
+### 3. MS-DOS Mode 13h (DJGPP)
 ```bash
-# Build test runner
-make test
-
-# Run 70 tics of gameplay on E1M1 and output verification screenshot
-make run-test
+mkdir -p build/dos
+./toolchain/djgpp/bin/i586-pc-msdosdjgpp-gcc -O2 -std=gnu99 \
+  src/doom/*.c src/hal/common/i_sound_mixer.c src/hal/common/i_mus2midi.c \
+  src/hal/common/i_net_ip.c src/hal/dos/*.c \
+  -Isrc/doom -Isrc/hal/common \
+  -lm -s -o build/dos/DOOM.EXE
+cp toolchain/CWSDPMI.EXE build/dos/
 ```
-This produces `test_frame35.ppm` and confirms full playsim and software renderer execution.
 
----
-
-### 4. Cross-Platform CMake Build (SDL2 or Native)
-
+### 4. Linux (SDL2)
 ```bash
-mkdir build && cd build
-cmake ..
-cmake --build .
+mkdir -p build/linux
+gcc -O2 -std=c99 \
+  src/doom/*.c src/hal/common/*.c src/hal/sdl/*.c \
+  -Isrc/doom -Isrc/hal/common \
+  -lSDL2 -lm -s -o build/linux/doom_sdl
+
+# Run:
+./build/linux/doom_sdl -iwad doom1.wad
 ```
-- On Windows: Builds `doom_win32.exe` (native Win32).
-- On systems with SDL2: Builds `doom_sdl`.
-- On all platforms: Builds `doom_test`.
+
+### 5. Automated Headless Test Suite (Any OS)
+```bash
+mkdir -p build/test
+gcc -O2 -std=c99 \
+  src/doom/*.c src/hal/common/*.c src/hal/test/*.c \
+  -Isrc/doom -Isrc/hal/common \
+  -lm -o build/test/doom_test
+
+# Execute 150-frame headless playsim verification:
+./build/test/doom_test -iwad doom1.wad -warp 1 1 -testframes 150
+```
 
 ---
 

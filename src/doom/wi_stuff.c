@@ -77,35 +77,36 @@ rcsid[] = "$Id: wi_stuff.c,v 1.7 1997/02/03 22:45:13 b1 Exp $";
 
 
 // GLOBAL LOCATIONS
+#define WI_X			((SCREENWIDTH - 320) / 2)
 #define WI_TITLEY		2
 #define WI_SPACINGY    		33
 
 // SINGPLE-PLAYER STUFF
-#define SP_STATSX		50
+#define SP_STATSX		(50 + WI_X)
 #define SP_STATSY		50
 
-#define SP_TIMEX		16
+#define SP_TIMEX		(16 + WI_X)
 #define SP_TIMEY		(SCREENHEIGHT-32)
 
 
 // NET GAME STUFF
 #define NG_STATSY		50
-#define NG_STATSX		(32 + SHORT(star->width)/2 + 32*!dofrags)
+#define NG_STATSX		(32 + SHORT(star->width)/2 + 32*!dofrags + WI_X)
 
 #define NG_SPACINGX    		64
 
 
 // DEATHMATCH STUFF
-#define DM_MATRIXX		42
+#define DM_MATRIXX		(42 + WI_X)
 #define DM_MATRIXY		68
 
 #define DM_SPACINGX		40
 
-#define DM_TOTALSX		269
+#define DM_TOTALSX		(269 + WI_X)
 
-#define DM_KILLERSX		10
+#define DM_KILLERSX		(10 + WI_X)
 #define DM_KILLERSY		100
-#define DM_VICTIMSX    		5
+#define DM_VICTIMSX    		(5 + WI_X)
 #define DM_VICTIMSY		50
 
 
@@ -468,7 +469,7 @@ WI_drawOnLnode
     i = 0;
     do
     {
-	left = lnodes[wbs->epsd][n].x - SHORT(c[i]->leftoffset);
+	left = lnodes[wbs->epsd][n].x + WI_X - SHORT(c[i]->leftoffset);
 	top = lnodes[wbs->epsd][n].y - SHORT(c[i]->topoffset);
 	right = left + SHORT(c[i]->width);
 	bottom = top + SHORT(c[i]->height);
@@ -488,7 +489,7 @@ WI_drawOnLnode
 
     if (fits && i<2)
     {
-	V_DrawPatch(lnodes[wbs->epsd][n].x, lnodes[wbs->epsd][n].y,
+	V_DrawPatch(lnodes[wbs->epsd][n].x + WI_X, lnodes[wbs->epsd][n].y,
 		    FB, c[i]);
     }
     else
@@ -596,7 +597,7 @@ void WI_drawAnimatedBack(void)
 	a = &anims[wbs->epsd][i];
 
 	if (a->ctr >= 0)
-	    V_DrawPatch(a->loc.x, a->loc.y, FB, a->p[a->ctr]);
+	    V_DrawPatch(a->loc.x + WI_X, a->loc.y, FB, a->p[a->ctr]);
     }
 
 }
@@ -1554,8 +1555,10 @@ void WI_loadData(void)
     }
 
     // background
-    bg = W_CacheLumpName(name, PU_CACHE);    
-    V_DrawPatch(0, 0, 1, bg);
+    bg = W_CacheLumpName(name, PU_CACHE);
+    if (WI_X > 0)
+	memset(screens[1], 0, SCREENWIDTH * SCREENHEIGHT);
+    V_DrawPatch(WI_X, 0, 1, bg);
 
 
     // UNUSED unsigned char *pic = screens[1];

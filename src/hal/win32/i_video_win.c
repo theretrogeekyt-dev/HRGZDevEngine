@@ -2,14 +2,17 @@
 //-----------------------------------------------------------------------------
 //
 // DESCRIPTION:
-//	Native Win32 hardware video and input driver for Modern Windows.
-//	Uses GDI StretchDIBits (GPU-accelerated in DWM) with 4:3 aspect ratio scaling.
+//	Hardware-accelerated native Win32 video and input driver for Modern Windows.
+//	Uses OpenGL hardware acceleration (WGL context, streaming texture upload,
+//	hardware V-Sync, and 4:3 CRT aspect ratio letterboxing).
+//	Gracefully falls back to GDI StretchDIBits if OpenGL is unavailable.
 //	Zero external DLL dependencies!
 //
 //-----------------------------------------------------------------------------
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <GL/gl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -25,14 +28,26 @@
 #define DOOM_WINDOW_CLASS "HRGZDevEngine_DOOM"
 #define DEFAULT_SCALE     3
 
-static HWND   hwnd_main = NULL;
-static HDC    hdc_main = NULL;
+#ifndef GL_BGRA_EXT
+#define GL_BGRA_EXT 0x80E1
+#endif
+#ifndef GL_CLAMP_TO_EDGE
+#define GL_CLAMP_TO_EDGE 0x812F
+#endif
+
+typedef BOOL (APIENTRY *PFNWGLSWAPINTERVALEXTPROC)(int interval);
+
+static HWND       hwnd_main = NULL;
+static HDC        hdc_main = NULL;
+static HGLRC      hglrc_main = NULL;
+static GLuint     gl_texture_id = 0;
+static boolean    opengl_enabled = false;
+
 static BITMAPINFO bmi;
-static uint32_t argb_palette[256];
-static uint32_t argb_framebuffer[SCREENWIDTH * SCREENHEIGHT];
-static boolean window_active = false;
-static boolean mouse_captured = false;
-static POINT  center_cursor;
+static uint32_t   argb_palette[256];
+static uint32_t   argb_framebuffer[SCREENWIDTH * SCREENHEIGHT];
+static boolean    window_active = false;
+static boolean    mouse_captured = false;
 
 static int win_width = SCREENWIDTH * DEFAULT_SCALE;
 static int win_height = SCREENHEIGHT * DEFAULT_SCALE;
@@ -180,7 +195,7 @@ void I_InitGraphics(void)
     WNDCLASSEXA wc;
     memset(&wc, 0, sizeof(wc));
     wc.cbSize = sizeof(wc);
-    wc.style = CS_HREDRAW | CS_VREDRAW;
+    wc.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW;
     wc.lpfnWndProc = WndProc;
     wc.hInstance = hInstance;
     wc.hIcon = LoadIcon(NULL, IDI_APPLICATION);
@@ -198,7 +213,7 @@ void I_InitGraphics(void)
     if (scale > 6) scale = 6;
 
     win_width = SCREENWIDTH * scale;
-    win_height = SCREENHEIGHT * scale;
+    win_height = (int)(SCREENHEIGHT * scale * 1.2);
 
     RECT rect = {0, 0, win_width, win_height};
     AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, FALSE);
@@ -211,7 +226,7 @@ void I_InitGraphics(void)
     hwnd_main = CreateWindowExA(
         0,
         DOOM_WINDOW_CLASS,
-        "HRGZDevEngine DOOM (Modern Windows)",
+        "HRGZDevEngine DOOM (OpenGL)",
         WS_OVERLAPPEDWINDOW | WS_VISIBLE,
         pos_x, pos_y,
         rect.right - rect.left,
@@ -224,14 +239,61 @@ void I_InitGraphics(void)
 
     hdc_main = GetDC(hwnd_main);
 
-    // Setup BITMAPINFO for 32-bit top-down ARGB
-    memset(&bmi, 0, sizeof(bmi));
-    bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-    bmi.bmiHeader.biWidth = SCREENWIDTH;
-    bmi.bmiHeader.biHeight = -SCREENHEIGHT; // negative = top-down
-    bmi.bmiHeader.biPlanes = 1;
-    bmi.bmiHeader.biBitCount = 32;
-    bmi.bmiHeader.biCompression = BI_RGB;
+    // Initialize OpenGL Hardware Acceleration
+    PIXELFORMATDESCRIPTOR pfd;
+    memset(&pfd, 0, sizeof(pfd));
+    pfd.nSize = sizeof(pfd);
+    pfd.nVersion = 1;
+    pfd.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
+    pfd.iPixelType = PFD_TYPE_RGBA;
+    pfd.cColorBits = 32;
+    pfd.cDepthBits = 16;
+    pfd.iLayerType = PFD_MAIN_PLANE;
+
+    int format = ChoosePixelFormat(hdc_main, &pfd);
+    if (format)
+    {
+        SetPixelFormat(hdc_main, format, &pfd);
+        hglrc_main = wglCreateContext(hdc_main);
+        if (hglrc_main)
+        {
+            wglMakeCurrent(hdc_main, hglrc_main);
+            opengl_enabled = true;
+
+            // Enable hardware V-Sync if extension supported
+            PFNWGLSWAPINTERVALEXTPROC wglSwapIntervalEXT =
+                (PFNWGLSWAPINTERVALEXTPROC)wglGetProcAddress("wglSwapIntervalEXT");
+            if (wglSwapIntervalEXT)
+            {
+                wglSwapIntervalEXT(1);
+            }
+
+            // Create streaming texture for DOOM framebuffer
+            glGenTextures(1, &gl_texture_id);
+            glBindTexture(GL_TEXTURE_2D, gl_texture_id);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, SCREENWIDTH, SCREENHEIGHT, 0,
+                         GL_BGRA_EXT, GL_UNSIGNED_BYTE, NULL);
+
+            printf("I_InitGraphics: Modern Windows OpenGL hardware acceleration enabled (V-Sync ON)\n");
+        }
+    }
+
+    if (!opengl_enabled)
+    {
+        // GDI Fallback Setup
+        memset(&bmi, 0, sizeof(bmi));
+        bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+        bmi.bmiHeader.biWidth = SCREENWIDTH;
+        bmi.bmiHeader.biHeight = -SCREENHEIGHT; // negative = top-down
+        bmi.bmiHeader.biPlanes = 1;
+        bmi.bmiHeader.biBitCount = 32;
+        bmi.bmiHeader.biCompression = BI_RGB;
+        printf("I_InitGraphics: OpenGL unavailable, using GDI StretchDIBits fallback\n");
+    }
 
     UpdateWindow(hwnd_main);
 #endif
@@ -245,6 +307,17 @@ void I_ShutdownGraphics(void)
         ReleaseCapture();
         ShowCursor(TRUE);
         mouse_captured = false;
+    }
+    if (gl_texture_id)
+    {
+        glDeleteTextures(1, &gl_texture_id);
+        gl_texture_id = 0;
+    }
+    if (hglrc_main)
+    {
+        wglMakeCurrent(NULL, NULL);
+        wglDeleteContext(hglrc_main);
+        hglrc_main = NULL;
     }
     if (hdc_main && hwnd_main)
     {
@@ -266,12 +339,12 @@ void I_ShutdownGraphics(void)
 
 void I_SetPalette(byte* palette)
 {
-    // Convert 8-bit RGB DOOM palette to 32-bit ARGB
+    // Convert 8-bit RGB DOOM palette to 32-bit ARGB/BGRA
     for (int i = 0; i < 256; i++)
     {
-        uint8_t r = palette[i * 3 + 0];
-        uint8_t g = palette[i * 3 + 1];
-        uint8_t b = palette[i * 3 + 2];
+        uint8_t r = gammatable[usegamma][*palette++];
+        uint8_t g = gammatable[usegamma][*palette++];
+        uint8_t b = gammatable[usegamma][*palette++];
         argb_palette[i] = (0xFF << 24) | (r << 16) | (g << 8) | b;
     }
 }
@@ -285,40 +358,100 @@ void I_FinishUpdate(void)
     if (!screens[0] || !hdc_main)
         return;
 
-    // Convert 8-bit paletted DOOM screen to 32-bit ARGB framebuffer
+    // Convert 8-bit paletted DOOM screen to 32-bit framebuffer
     for (int i = 0; i < SCREENWIDTH * SCREENHEIGHT; i++)
     {
         argb_framebuffer[i] = argb_palette[screens[0][i]];
     }
 
 #if defined(_WIN32)
-    // Maintain correct 4:3 aspect ratio inside window (with pillarboxing)
     RECT client_rect;
     GetClientRect(hwnd_main, &client_rect);
-    int cw = client_rect.right;
-    int ch = client_rect.bottom;
+    int cw = client_rect.right - client_rect.left;
+    int ch = client_rect.bottom - client_rect.top;
 
     int dst_w = cw;
+#if SCREENWIDTH > 320
+    int dst_h = (cw * 9) / 16;
+    if (dst_h > ch)
+    {
+        dst_h = ch;
+        dst_w = (ch * 16) / 9;
+    }
+#else
     int dst_h = (cw * 3) / 4;
     if (dst_h > ch)
     {
         dst_h = ch;
         dst_w = (ch * 4) / 3;
     }
+#endif
     int dst_x = (cw - dst_w) / 2;
     int dst_y = (ch - dst_h) / 2;
 
-    SetStretchBltMode(hdc_main, COLORONCOLOR);
-    StretchDIBits(
-        hdc_main,
-        dst_x, dst_y, dst_w, dst_h,
-        0, 0, SCREENWIDTH, SCREENHEIGHT,
-        argb_framebuffer,
-        &bmi,
-        DIB_RGB_COLORS,
-        SRCCOPY
-    );
+    if (opengl_enabled && gl_texture_id)
+    {
+        // Update GPU texture
+        glBindTexture(GL_TEXTURE_2D, gl_texture_id);
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, SCREENWIDTH, SCREENHEIGHT,
+                        GL_BGRA_EXT, GL_UNSIGNED_BYTE, argb_framebuffer);
+
+        // Letterbox / Pillarbox clear
+        glViewport(0, 0, cw, ch);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        // Render 4:3 textured quad
+        glViewport(dst_x, dst_y, dst_w, dst_h);
+        glMatrixMode(GL_PROJECTION);
+        glLoadIdentity();
+        glOrtho(0.0, 1.0, 0.0, 1.0, -1.0, 1.0);
+        glMatrixMode(GL_MODELVIEW);
+        glLoadIdentity();
+
+        glEnable(GL_TEXTURE_2D);
+        glBindTexture(GL_TEXTURE_2D, gl_texture_id);
+        glBegin(GL_QUADS);
+            glTexCoord2f(0.0f, 1.0f); glVertex2f(0.0f, 0.0f);
+            glTexCoord2f(1.0f, 1.0f); glVertex2f(1.0f, 0.0f);
+            glTexCoord2f(1.0f, 0.0f); glVertex2f(1.0f, 1.0f);
+            glTexCoord2f(0.0f, 0.0f); glVertex2f(0.0f, 1.0f);
+        glEnd();
+        glDisable(GL_TEXTURE_2D);
+
+        SwapBuffers(hdc_main);
+    }
+    else
+    {
+        // GDI Software Fallback
+        SetStretchBltMode(hdc_main, COLORONCOLOR);
+        StretchDIBits(
+            hdc_main,
+            dst_x, dst_y, dst_w, dst_h,
+            0, 0, SCREENWIDTH, SCREENHEIGHT,
+            argb_framebuffer,
+            &bmi,
+            DIB_RGB_COLORS,
+            SRCCOPY
+        );
+    }
 #endif
+
+    // Frame refresh system:
+    // After the frame has been presented on top of the old one, save it
+    // and clear screens[0] so the next frame is built on a clean slate.
+    if (!wipe_active)
+    {
+        if (screens[4])
+            memcpy(screens[4], screens[0], SCREENWIDTH * SCREENHEIGHT);
+        memset(screens[0], 0, SCREENWIDTH * SCREENHEIGHT);
+    }
+}
+
+void I_ClearFrame(void)
+{
+    if (screens[0])
+        memset(screens[0], 0, SCREENWIDTH * SCREENHEIGHT);
 }
 
 void I_WaitVBL(int count)
@@ -328,7 +461,9 @@ void I_WaitVBL(int count)
 
 void I_ReadScreen(byte* scr)
 {
-    if (screens[0] && scr)
+    if (screens[4] && scr)
+        memcpy(scr, screens[4], SCREENWIDTH * SCREENHEIGHT);
+    else if (screens[0] && scr)
         memcpy(scr, screens[0], SCREENWIDTH * SCREENHEIGHT);
 }
 
@@ -385,4 +520,3 @@ void I_StartTic(void)
     }
 #endif
 }
-

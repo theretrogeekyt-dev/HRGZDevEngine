@@ -606,6 +606,9 @@ void A_Look (mobj_t* actor)
     mobj_t*	targ;
 	
     actor->threshold = 0;	// any shot will wake up
+    if (!actor->subsector || !actor->subsector->sector)
+	return;
+
     targ = actor->subsector->sector->soundtarget;
 
     if (targ

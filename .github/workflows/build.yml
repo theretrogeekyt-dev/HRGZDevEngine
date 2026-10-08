@@ -1,0 +1,282 @@
+name: Build & Release HRGZDevEngine DOOM
+
+on:
+  push:
+    branches: [ "main", "master" ]
+    tags: [ "v*" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  #--------------------------------------------------------------------------
+  # 1. Native macOS Build (Metal + Cocoa + AudioToolbox)
+  #--------------------------------------------------------------------------
+  build-macos:
+    name: macOS Native (Metal / Cocoa)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Build macOS DOOM Executable
+        run: |
+          mkdir -p build/mac
+          clang -O2 -Wall -Wno-parentheses -Wno-unused-const-variable \
+            -Wno-unused-but-set-variable -Wno-unused-variable -Wno-unknown-warning-option \
+            -std=c99 \
+            src/doom/*.c src/hal/common/*.c src/hal/mac/*.c src/hal/mac/*.m \
+            -Isrc/doom -Isrc/hal/common \
+            -framework Cocoa -framework Metal -framework QuartzCore \
+            -framework AudioToolbox -framework CoreFoundation -framework Carbon \
+            -lm -o build/mac/doom_mac
+
+      - name: Package DOOM.app Application Bundle
+        run: |
+          APP_DIR="build/mac/DOOM.app"
+          mkdir -p "${APP_DIR}/Contents/MacOS"
+          mkdir -p "${APP_DIR}/Contents/Resources"
+          cp build/mac/doom_mac "${APP_DIR}/Contents/MacOS/DOOM"
+          chmod +x "${APP_DIR}/Contents/MacOS/DOOM"
+          if [ -f "doom1.wad" ]; then
+            cp "doom1.wad" "${APP_DIR}/Contents/Resources/doom1.wad"
+          fi
+          cat > "${APP_DIR}/Contents/Info.plist" << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleDevelopmentRegion</key>
+              <string>en</string>
+              <key>CFBundleExecutable</key>
+              <string>DOOM</string>
+              <key>CFBundleIdentifier</key>
+              <string>com.hrgzdevengine.doom</string>
+              <key>CFBundleInfoDictionaryVersion</key>
+              <string>6.0</string>
+              <key>CFBundleName</key>
+              <string>DOOM</string>
+              <key>CFBundlePackageType</key>
+              <string>APPL</string>
+              <key>CFBundleShortVersionString</key>
+              <string>1.10</string>
+              <key>CFBundleVersion</key>
+              <string>1</string>
+              <key>NSHighResolutionCapable</key>
+              <true/>
+          </dict>
+          </plist>
+          EOF
+
+      - name: Create macOS Release Zip
+        run: |
+          cd build/mac
+          zip -r ../../HRGZDevEngine-DOOM-macOS.zip DOOM.app doom_mac
+
+      - name: Upload macOS Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: HRGZDevEngine-DOOM-macOS
+          path: HRGZDevEngine-DOOM-macOS.zip
+
+  #--------------------------------------------------------------------------
+  # 2. Modern Windows Native Build (Win32 + OpenGL + WinMM)
+  #--------------------------------------------------------------------------
+  build-windows:
+    name: Windows Native (Win32 / OpenGL)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup MinGW-w64
+        uses: egor-tensin/setup-mingw@v2
+        with:
+          platform: x64
+
+      - name: Build Windows DOOM Executable
+        shell: bash
+        run: |
+          mkdir -p build/win
+          gcc -O2 -Wall -Wno-parentheses -Wno-unused-const-variable \
+            -Wno-unused-but-set-variable -Wno-unused-variable -Wno-unknown-warning-option \
+            -std=c99 \
+            src/doom/*.c src/hal/common/*.c src/hal/win32/*.c \
+            -Isrc/doom -Isrc/hal/common \
+            -lgdi32 -lwinmm -lws2_32 -lopengl32 -lm -s \
+            -o build/win/doom.exe
+          if [ -f "doom1.wad" ]; then
+            cp "doom1.wad" build/win/doom1.wad
+          fi
+
+      - name: Create Windows Release Zip
+        shell: pwsh
+        run: |
+          Compress-Archive -Path build/win/* -DestinationPath HRGZDevEngine-DOOM-Windows.zip
+
+      - name: Upload Windows Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: HRGZDevEngine-DOOM-Windows
+          path: HRGZDevEngine-DOOM-Windows.zip
+
+  #--------------------------------------------------------------------------
+  # 3. MS-DOS Mode 13h Protected Mode Build (DJGPP + CWSDPMI)
+  #--------------------------------------------------------------------------
+  build-dos:
+    name: MS-DOS (DJGPP Mode 13h)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup DJGPP Toolchain Permissions
+        run: |
+          chmod +x toolchain/djgpp/bin/* toolchain/djgpp/libexec/gcc/i586-pc-msdosdjgpp/12.2.0/*
+
+      - name: Cross-Compile DOOM for MS-DOS
+        run: |
+          mkdir -p build/dos
+          ./toolchain/djgpp/bin/i586-pc-msdosdjgpp-gcc -O2 -Wall -Wno-parentheses \
+            -Wno-unused-variable -Wno-misleading-indentation -Wno-format-overflow \
+            -std=gnu99 \
+            src/doom/*.c src/hal/common/i_sound_mixer.c src/hal/common/i_mus2midi.c \
+            src/hal/common/i_net_ip.c src/hal/dos/*.c \
+            -Isrc/doom -Isrc/hal/common \
+            -lm -s -o build/dos/DOOM.EXE
+
+      - name: Bundle DOS DPMI Host and WAD
+        run: |
+          cp toolchain/CWSDPMI.EXE build/dos/CWSDPMI.EXE
+          if [ -f "doom1.wad" ]; then
+            cp "doom1.wad" build/dos/DOOM1.WAD
+          fi
+
+      - name: Create MS-DOS Release Zip
+        run: |
+          cd build/dos
+          zip -r ../../HRGZDevEngine-DOOM-DOS.zip DOOM.EXE CWSDPMI.EXE DOOM1.WAD
+
+      - name: Upload MS-DOS Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: HRGZDevEngine-DOOM-DOS
+          path: HRGZDevEngine-DOOM-DOS.zip
+
+  #--------------------------------------------------------------------------
+  # 4. Linux Build & Automated Headless Playsim Test Suite
+  #--------------------------------------------------------------------------
+  test-and-verify:
+    name: Linux & Headless Playsim Test Suite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsdl2-dev netpbm
+
+      - name: Build Headless Test Runner
+        run: |
+          mkdir -p build/test
+          gcc -O2 -Wall -Wno-parentheses -Wno-unused-const-variable \
+            -Wno-unused-but-set-variable -Wno-unused-variable \
+            -std=c99 \
+            src/doom/*.c src/hal/common/*.c src/hal/test/*.c \
+            -Isrc/doom -Isrc/hal/common \
+            -lm -o build/test/doom_test
+
+      - name: Run E1M1 Playsim Frame Verification (150 Frames)
+        run: |
+          ./build/test/doom_test -iwad doom1.wad -warp 1 1 -testframes 150
+
+      - name: Run Player Movement Playsim Verification (120 Frames)
+        run: |
+          ./build/test/doom_test -iwad doom1.wad -warp 1 1 -testframes 120 -testmove
+
+      - name: Run In-Game Menu UI Playsim Verification (120 Frames)
+        run: |
+          ./build/test/doom_test -iwad doom1.wad -warp 1 1 -testframes 120 -testmenu
+
+      - name: Build Linux SDL2 DOOM Executable
+        run: |
+          mkdir -p build/linux
+          gcc -O2 -Wall -Wno-parentheses -Wno-unused-const-variable \
+            -Wno-unused-but-set-variable -Wno-unused-variable \
+            -std=c99 \
+            src/doom/*.c src/hal/common/*.c src/hal/sdl/*.c \
+            -Isrc/doom -Isrc/hal/common \
+            -lSDL2 -lm -s -o build/linux/doom_sdl
+          if [ -f "doom1.wad" ]; then
+            cp "doom1.wad" build/linux/doom1.wad
+          fi
+          cd build/linux
+          zip -r ../../HRGZDevEngine-DOOM-Linux-SDL2.zip doom_sdl doom1.wad
+
+      - name: Convert Verification PPM Screenshots to PNG
+        run: |
+          mkdir -p build/test_results
+          for ppm in test_*.ppm; do
+            if [ -f "$ppm" ]; then
+              pnmtopng "$ppm" > "build/test_results/${ppm%.ppm}.png"
+            fi
+          done
+
+      - name: Upload Linux SDL2 Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: HRGZDevEngine-DOOM-Linux-SDL2
+          path: HRGZDevEngine-DOOM-Linux-SDL2.zip
+
+      - name: Upload Verification Screenshots Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Verification-Screenshots
+          path: build/test_results/
+
+  #--------------------------------------------------------------------------
+  # 5. Automated GitHub Release Packaging (Triggered on Tags: v*)
+  #--------------------------------------------------------------------------
+  release:
+    name: Publish GitHub Release
+    needs: [build-macos, build-windows, build-dos, test-and-verify]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download macOS Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: HRGZDevEngine-DOOM-macOS
+
+      - name: Download Windows Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: HRGZDevEngine-DOOM-Windows
+
+      - name: Download MS-DOS Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: HRGZDevEngine-DOOM-DOS
+
+      - name: Download Linux Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: HRGZDevEngine-DOOM-Linux-SDL2
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            HRGZDevEngine-DOOM-macOS.zip
+            HRGZDevEngine-DOOM-Windows.zip
+            HRGZDevEngine-DOOM-DOS.zip
+            HRGZDevEngine-DOOM-Linux-SDL2.zip
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+

@@ -85,7 +85,7 @@ void I_InitGraphics(void)
     if (scale > 6) scale = 6;
 
     int win_w = SCREENWIDTH * scale;
-    int win_h = SCREENHEIGHT * scale;
+    int win_h = (int)(SCREENHEIGHT * scale * 1.2);
 
     uint32_t flags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
     if (M_CheckParm("-fullscreen"))
@@ -114,8 +114,8 @@ void I_InitGraphics(void)
     if (!sdl_renderer)
         I_Error("I_InitGraphics: SDL_CreateRenderer failed: %s", SDL_GetError());
 
-    // Maintain 4:3 aspect ratio automatically in modern widescreen monitors
-    SDL_RenderSetLogicalSize(sdl_renderer, SCREENWIDTH, SCREENHEIGHT);
+    // Maintain authentic display aspect ratio automatically in modern widescreen monitors
+    SDL_RenderSetLogicalSize(sdl_renderer, SCREENWIDTH, (int)(SCREENHEIGHT * 1.2));
 
     sdl_texture = SDL_CreateTexture(
         sdl_renderer,
@@ -186,6 +186,22 @@ void I_FinishUpdate(void)
     SDL_RenderClear(sdl_renderer);
     SDL_RenderCopy(sdl_renderer, sdl_texture, NULL, NULL);
     SDL_RenderPresent(sdl_renderer);
+
+    // Frame refresh system:
+    // After the frame has been presented on top of the old one, save it
+    // and clear screens[0] so the next frame is built on a clean slate.
+    if (!wipe_active)
+    {
+        if (screens[4])
+            memcpy(screens[4], screens[0], SCREENWIDTH * SCREENHEIGHT);
+        memset(screens[0], 0, SCREENWIDTH * SCREENHEIGHT);
+    }
+}
+
+void I_ClearFrame(void)
+{
+    if (screens[0])
+        memset(screens[0], 0, SCREENWIDTH * SCREENHEIGHT);
 }
 
 void I_WaitVBL(int count)
@@ -195,7 +211,9 @@ void I_WaitVBL(int count)
 
 void I_ReadScreen(byte* scr)
 {
-    if (screens[0] && scr)
+    if (screens[4] && scr)
+        memcpy(scr, screens[4], SCREENWIDTH * SCREENHEIGHT);
+    else if (screens[0] && scr)
         memcpy(scr, screens[0], SCREENWIDTH * SCREENHEIGHT);
 }
 

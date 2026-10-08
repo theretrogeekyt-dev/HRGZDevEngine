@@ -1115,8 +1115,9 @@ void M_ReadSaveStrings(void)
 void M_DrawLoad(void)
 {
     int             i;
+    int             mx = (SCREENWIDTH - 320) / 2;
 	
-    V_DrawPatchDirect (72,28,0,W_CacheLumpName("M_LOADG",PU_CACHE));
+    V_DrawPatchDirect (72 + mx, 28, 0, W_CacheLumpName("M_LOADG", PU_CACHE));
     for (i = 0;i < load_end; i++)
     {
 	M_DrawSaveLoadBorder(LoadDef.x,LoadDef.y+LINEHEIGHT*i);
@@ -1185,8 +1186,9 @@ void M_LoadGame (int choice)
 void M_DrawSave(void)
 {
     int             i;
+    int             mx = (SCREENWIDTH - 320) / 2;
 	
-    V_DrawPatchDirect (72,28,0,W_CacheLumpName("M_SAVEG",PU_CACHE));
+    V_DrawPatchDirect (72 + mx, 28, 0, W_CacheLumpName("M_SAVEG", PU_CACHE));
     for (i = 0;i < load_end; i++)
     {
 	M_DrawSaveLoadBorder(LoadDef.x,LoadDef.y+LINEHEIGHT*i);
@@ -1327,15 +1329,18 @@ void M_QuickLoad(void)
 void M_DrawReadThis1(void)
 {
     inhelpscreens = true;
+    if (SCREENWIDTH > 320)
+        memset(screens[0], 0, SCREENWIDTH * SCREENHEIGHT);
+    int mx = (SCREENWIDTH - 320) / 2;
     switch ( gamemode )
     {
       case commercial:
-	V_DrawPatchDirect (0,0,0,W_CacheLumpName("HELP",PU_CACHE));
+	V_DrawPatchDirect (mx,0,0,W_CacheLumpName("HELP",PU_CACHE));
 	break;
       case shareware:
       case registered:
       case retail:
-	V_DrawPatchDirect (0,0,0,W_CacheLumpName("HELP1",PU_CACHE));
+	V_DrawPatchDirect (mx,0,0,W_CacheLumpName("HELP1",PU_CACHE));
 	break;
       default:
 	break;
@@ -1351,16 +1356,19 @@ void M_DrawReadThis1(void)
 void M_DrawReadThis2(void)
 {
     inhelpscreens = true;
+    if (SCREENWIDTH > 320)
+        memset(screens[0], 0, SCREENWIDTH * SCREENHEIGHT);
+    int mx = (SCREENWIDTH - 320) / 2;
     switch ( gamemode )
     {
       case retail:
       case commercial:
 	// This hack keeps us from having to change menus.
-	V_DrawPatchDirect (0,0,0,W_CacheLumpName("CREDIT",PU_CACHE));
+	V_DrawPatchDirect (mx,0,0,W_CacheLumpName("CREDIT",PU_CACHE));
 	break;
       case shareware:
       case registered:
-	V_DrawPatchDirect (0,0,0,W_CacheLumpName("HELP2",PU_CACHE));
+	V_DrawPatchDirect (mx,0,0,W_CacheLumpName("HELP2",PU_CACHE));
 	break;
       default:
 	break;
@@ -1374,7 +1382,8 @@ void M_DrawReadThis2(void)
 //
 void M_DrawSound(void)
 {
-    V_DrawPatchDirect (60,38,0,W_CacheLumpName("M_SVOL",PU_CACHE));
+    int mx = (SCREENWIDTH - 320) / 2;
+    V_DrawPatchDirect (60 + mx, 38, 0, W_CacheLumpName("M_SVOL", PU_CACHE));
 
     M_DrawThermo(SoundDef.x,SoundDef.y+LINEHEIGHT*(sfx_vol+1),
 		 16,snd_SfxVolume);
@@ -1430,7 +1439,8 @@ void M_MusicVol(int choice)
 //
 void M_DrawMainMenu(void)
 {
-    V_DrawPatchDirect (94,2,0,W_CacheLumpName("M_DOOM",PU_CACHE));
+    int mx = (SCREENWIDTH - 320) / 2;
+    V_DrawPatchDirect (94 + mx, 2, 0, W_CacheLumpName("M_DOOM", PU_CACHE));
 }
 
 
@@ -1441,8 +1451,9 @@ void M_DrawMainMenu(void)
 //
 void M_DrawNewGame(void)
 {
-    V_DrawPatchDirect (96,14,0,W_CacheLumpName("M_NEWG",PU_CACHE));
-    V_DrawPatchDirect (54,38,0,W_CacheLumpName("M_SKILL",PU_CACHE));
+    int mx = (SCREENWIDTH - 320) / 2;
+    V_DrawPatchDirect (96 + mx, 14, 0, W_CacheLumpName("M_NEWG", PU_CACHE));
+    V_DrawPatchDirect (54 + mx, 38, 0, W_CacheLumpName("M_SKILL", PU_CACHE));
 }
 
 void M_NewGame(int choice)
@@ -1632,6 +1643,7 @@ void M_DrawMulti(void)
 void M_DrawHost(void)
 {
     char buf[64];
+    int mx = (SCREENWIDTH - 320) / 2;
     int title_x = (SCREENWIDTH - SHORT(((patch_t*)m_host_patch)->width)) / 2;
     int y;
     int vw;
@@ -1640,56 +1652,56 @@ void M_DrawHost(void)
 
     // Row 0: Mode
     y = HostDef.y + 0 * LINEHEIGHT;
-    M_WriteText(40, y, "GAME MODE:");
-    M_DrawBox(128, y, 19);
+    M_WriteText(40 + mx, y, "GAME MODE:");
+    M_DrawBox(128 + mx, y, 19);
     sprintf(buf, "<< %s >>", host_mode_names[host_gamemode]);
     vw = M_StringWidth(buf);
-    M_WriteText(128 + (152 - vw) / 2, y, buf);
+    M_WriteText(128 + mx + (152 - vw) / 2, y, buf);
 
     // Row 1: Episode
     y = HostDef.y + 1 * LINEHEIGHT;
-    M_WriteText(40, y, "EPISODE:");
-    M_DrawBox(128, y, 19);
+    M_WriteText(40 + mx, y, "EPISODE:");
+    M_DrawBox(128 + mx, y, 19);
     if (gamemode == commercial)
         strcpy(buf, "<< DOOM II >>");
     else
         sprintf(buf, "<< EPISODE %d >>", host_episode);
     vw = M_StringWidth(buf);
-    M_WriteText(128 + (152 - vw) / 2, y, buf);
+    M_WriteText(128 + mx + (152 - vw) / 2, y, buf);
 
     // Row 2: Map
     y = HostDef.y + 2 * LINEHEIGHT;
-    M_WriteText(40, y, "LEVEL / MAP:");
-    M_DrawBox(128, y, 19);
+    M_WriteText(40 + mx, y, "LEVEL / MAP:");
+    M_DrawBox(128 + mx, y, 19);
     if (gamemode == commercial)
         sprintf(buf, "<< MAP %02d >>", host_map);
     else
         sprintf(buf, "<< E%dM%d >>", host_episode, host_map);
     vw = M_StringWidth(buf);
-    M_WriteText(128 + (152 - vw) / 2, y, buf);
+    M_WriteText(128 + mx + (152 - vw) / 2, y, buf);
 
     // Row 3: Skill
     y = HostDef.y + 3 * LINEHEIGHT;
-    M_WriteText(40, y, "DIFFICULTY:");
-    M_DrawBox(128, y, 19);
+    M_WriteText(40 + mx, y, "DIFFICULTY:");
+    M_DrawBox(128 + mx, y, 19);
     sprintf(buf, "<< %s >>", host_skill_names[host_skill]);
     vw = M_StringWidth(buf);
-    M_WriteText(128 + (152 - vw) / 2, y, buf);
+    M_WriteText(128 + mx + (152 - vw) / 2, y, buf);
 
     // Row 4: Max Players
     y = HostDef.y + 4 * LINEHEIGHT;
-    M_WriteText(40, y, "PLAYERS:");
-    M_DrawBox(128, y, 19);
+    M_WriteText(40 + mx, y, "PLAYERS:");
+    M_DrawBox(128 + mx, y, 19);
     sprintf(buf, "<< %d PLAYERS >>", host_max_players);
     vw = M_StringWidth(buf);
-    M_WriteText(128 + (152 - vw) / 2, y, buf);
+    M_WriteText(128 + mx + (152 - vw) / 2, y, buf);
 
     // Row 5: Start Lobby Button
     y = HostDef.y + 5 * LINEHEIGHT;
-    M_DrawBox(48, y, 24);
+    M_DrawBox(48 + mx, y, 24);
     strcpy(buf, ">> START HOST LOBBY <<");
     vw = M_StringWidth(buf);
-    M_WriteText(48 + (192 - vw) / 2, y, buf);
+    M_WriteText(48 + mx + (192 - vw) / 2, y, buf);
 
     // Bottom Hints
     strcpy(buf, "USE ARROWS TO ADJUST SETTINGS");
@@ -1704,6 +1716,7 @@ void M_DrawHost(void)
 void M_DrawJoin(void)
 {
     char buf[64];
+    int mx = (SCREENWIDTH - 320) / 2;
     int title_x = (SCREENWIDTH - SHORT(((patch_t*)m_join_patch)->width)) / 2;
     int y;
     int vw;
@@ -1717,18 +1730,18 @@ void M_DrawJoin(void)
 
     // Row 0: IP Input Box
     y = JoinDef.y + 0 * LINEHEIGHT;
-    M_DrawBox(48, y, 24);
+    M_DrawBox(48 + mx, y, 24);
     sprintf(buf, "%s%s", join_ip_buf[0] ? join_ip_buf : "127.0.0.1",
             (itemOn == join_ip_idx && ((I_GetTime() / 15) & 1)) ? "_" : "");
     vw = M_StringWidth(buf);
-    M_WriteText(48 + (192 - vw) / 2, y, buf);
+    M_WriteText(48 + mx + (192 - vw) / 2, y, buf);
 
     // Row 2: Connect Button
     y = JoinDef.y + 2 * LINEHEIGHT;
-    M_DrawBox(48, y, 24);
+    M_DrawBox(48 + mx, y, 24);
     strcpy(buf, ">> CONNECT TO HOST <<");
     vw = M_StringWidth(buf);
-    M_WriteText(48 + (192 - vw) / 2, y, buf);
+    M_WriteText(48 + mx + (192 - vw) / 2, y, buf);
 
     // Instructions
     strcpy(buf, "TYPE NUMBERS AND DOTS (0-9, .)");
@@ -1751,6 +1764,7 @@ void M_DrawJoin(void)
 void M_DrawHostLobby(void)
 {
     char buf[80];
+    int mx = (SCREENWIDTH - 320) / 2;
     int connected = I_Net_GetConnectedCount();
     int max_p = I_Net_GetMaxPlayers();
     int title_x = (SCREENWIDTH - SHORT(((patch_t*)m_host_patch)->width)) / 2;
@@ -1759,7 +1773,7 @@ void M_DrawHostLobby(void)
     V_DrawPatchDirect(title_x, 16, 0, (patch_t*)m_host_patch);
 
     // Info Header Box
-    M_DrawBox(24, 40, 34);
+    M_DrawBox(24 + mx, 40, 34);
     if (gamemode == commercial)
         sprintf(buf, "HOST IP: %s:5029   |   %s MAP%02d SKILL %d",
                 I_Net_GetLocalIP(), host_mode_names[host_gamemode], host_map, host_skill + 1);
@@ -1767,24 +1781,24 @@ void M_DrawHostLobby(void)
         sprintf(buf, "HOST IP: %s:5029   |   %s E%dM%d SKILL %d",
                 I_Net_GetLocalIP(), host_mode_names[host_gamemode], host_episode, host_map, host_skill + 1);
     vw = M_StringWidth(buf);
-    M_WriteText(24 + (272 - vw) / 2, 40, buf);
+    M_WriteText(24 + mx + (272 - vw) / 2, 40, buf);
 
     // Player Slot Boxes (1 to 4)
     for (int i = 0; i < max_p && i < 4; i++)
     {
         int py = 62 + i * 18;
-        M_DrawBox(24, py, 34);
+        M_DrawBox(24 + mx, py, 34);
         if (i == 0)
             sprintf(buf, "PLAYER 1:  %s  [HOST / YOU]", I_Net_GetLocalIP());
         else if (i < connected)
             sprintf(buf, "PLAYER %d:  %s  [CONNECTED]", i + 1, I_Net_GetClientNodeIP(i));
         else
             sprintf(buf, "PLAYER %d:  WAITING FOR CLIENT...", i + 1);
-        M_WriteText(32, py, buf);
+        M_WriteText(32 + mx, py, buf);
     }
 
     // Launch / Status Box
-    M_DrawBox(24, 142, 34);
+    M_DrawBox(24 + mx, 142, 34);
     if (connected >= 2)
     {
         if ((I_GetTime() / 15) & 1)
@@ -1797,7 +1811,7 @@ void M_DrawHostLobby(void)
         strcpy(buf, "WAITING FOR PLAYERS TO JOIN...");
     }
     vw = M_StringWidth(buf);
-    M_WriteText(24 + (272 - vw) / 2, 142, buf);
+    M_WriteText(24 + mx + (272 - vw) / 2, 142, buf);
 
     strcpy(buf, "PRESS [ESC] TO CANCEL LOBBY");
     vw = M_StringWidth(buf);
@@ -1807,6 +1821,7 @@ void M_DrawHostLobby(void)
 void M_DrawClientLobby(void)
 {
     char buf[80];
+    int mx = (SCREENWIDTH - 320) / 2;
     int node = I_Net_GetClientNode();
     int title_x = (SCREENWIDTH - SHORT(((patch_t*)m_join_patch)->width)) / 2;
     int vw;
@@ -1814,22 +1829,22 @@ void M_DrawClientLobby(void)
     V_DrawPatchDirect(title_x, 16, 0, (patch_t*)m_join_patch);
 
     // Target Host Box
-    M_DrawBox(24, 40, 34);
+    M_DrawBox(24 + mx, 40, 34);
     sprintf(buf, "TARGET HOST: %s:5029", join_ip_buf);
     vw = M_StringWidth(buf);
-    M_WriteText(24 + (272 - vw) / 2, 40, buf);
+    M_WriteText(24 + mx + (272 - vw) / 2, 40, buf);
 
     // Status Box
-    M_DrawBox(24, 64, 34);
+    M_DrawBox(24 + mx, 64, 34);
     const char* status = I_Net_GetClientStatusMsg();
     if (!status || !status[0])
         status = "CONNECTING TO HOST...";
     sprintf(buf, "STATUS: %s", status);
     vw = M_StringWidth(buf);
-    M_WriteText(24 + (272 - vw) / 2, 64, buf);
+    M_WriteText(24 + mx + (272 - vw) / 2, 64, buf);
 
     // Assignment & Match Info Box
-    M_DrawBox(24, 88, 34);
+    M_DrawBox(24 + mx, 88, 34);
     if (node >= 0)
     {
         int d_skill = I_Net_GetGameSkill();
@@ -1849,10 +1864,10 @@ void M_DrawClientLobby(void)
         strcpy(buf, "WAITING FOR SERVER ACCEPTANCE...");
     }
     vw = M_StringWidth(buf);
-    M_WriteText(24 + (272 - vw) / 2, 88, buf);
+    M_WriteText(24 + mx + (272 - vw) / 2, 88, buf);
 
     // Action Prompt Box
-    M_DrawBox(24, 126, 34);
+    M_DrawBox(24 + mx, 126, 34);
     if (node >= 0)
     {
         if ((I_GetTime() / 15) & 1)
@@ -1865,7 +1880,7 @@ void M_DrawClientLobby(void)
         strcpy(buf, "CONNECTING TO HOST SOCKET ON UDP 5029...");
     }
     vw = M_StringWidth(buf);
-    M_WriteText(24 + (272 - vw) / 2, 126, buf);
+    M_WriteText(24 + mx + (272 - vw) / 2, 126, buf);
 
     strcpy(buf, "PRESS [ESC] TO DISCONNECT AND RETURN");
     vw = M_StringWidth(buf);
@@ -1880,7 +1895,8 @@ int     epi;
 
 void M_DrawEpisode(void)
 {
-    V_DrawPatchDirect (54,38,0,W_CacheLumpName("M_EPISOD",PU_CACHE));
+    int mx = (SCREENWIDTH - 320) / 2;
+    V_DrawPatchDirect (54 + mx, 38, 0, W_CacheLumpName("M_EPISOD", PU_CACHE));
 }
 
 void M_VerifyNightmare(int ch)
@@ -1938,7 +1954,8 @@ char	msgNames[2][9]		= {"M_MSGOFF","M_MSGON"};
 
 void M_DrawOptions(void)
 {
-    V_DrawPatchDirect (108,15,0,W_CacheLumpName("M_OPTTTL",PU_CACHE));
+    int mx = (SCREENWIDTH - 320) / 2;
+    V_DrawPatchDirect (108 + mx, 15, 0, W_CacheLumpName("M_OPTTTL", PU_CACHE));
 	
     V_DrawPatchDirect (OptionsDef.x + 175,OptionsDef.y+LINEHEIGHT*detail,0,
 		       W_CacheLumpName(detailNames[detailLevel],PU_CACHE));
@@ -3007,7 +3024,7 @@ void M_Drawer (void)
 		start += i;
 	    }
 				
-	    x = 160 - M_StringWidth(string)/2;
+	    x = SCREENWIDTH / 2 - M_StringWidth(string)/2;
 	    M_WriteText(x,y,string);
 	    y += SHORT(hu_font[0]->height);
 	}
@@ -3133,6 +3150,25 @@ void M_Init (void)
     messageLastMenuActive = menuactive;
     quickSaveSlot = -1;
 
+    static boolean menus_offset = false;
+    int mx = (SCREENWIDTH - 320) / 2;
+    if (mx > 0 && !menus_offset)
+    {
+        menus_offset = true;
+        MainDef.x += mx;
+        MultiDef.x += mx;
+        HostDef.x += mx;
+        JoinDef.x += mx;
+        NewDef.x += mx;
+        EpiDef.x += mx;
+        OptionsDef.x += mx;
+        SoundDef.x += mx;
+        LoadDef.x += mx;
+        SaveDef.x += mx;
+        ReadDef1.x += mx;
+        ReadDef2.x += mx;
+    }
+
     // Here we could catch other version dependencies,
     //  like HELP1/2, and four episodes.
 
@@ -3148,7 +3184,7 @@ void M_Init (void)
 	MainDef.y += 8;
 	NewDef.prevMenu = &MainDef;
 	ReadDef1.routine = M_DrawReadThis1;
-	ReadDef1.x = 330;
+	ReadDef1.x = 330 + mx;
 	ReadDef1.y = 165;
 	ReadMenu1[0].routine = M_FinishReadThis;
 	break;

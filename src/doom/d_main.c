@@ -200,6 +200,7 @@ void D_ProcessEvents (void)
 
 // wipegamestate can be set to -1 to force a wipe on the next draw
 gamestate_t     wipegamestate = GS_DEMOSCREEN;
+boolean         wipe_active = false;
 extern  boolean setsizeneeded;
 extern  int             showMessages;
 void R_ExecuteSetViewSize (void);
@@ -242,6 +243,14 @@ void D_Display (void)
     else
 	wipe = false;
 
+    // Frame refresh system:
+    // If not wiping, clear the entire frame buffer so the next frame
+    // is built on a clean canvas, eliminating any ghosting or Hall of Mirrors.
+    if (!wipe)
+    {
+	I_ClearFrame ();
+    }
+
     if (gamestate == GS_LEVEL && gametic)
 	HU_Erase();
     
@@ -253,10 +262,8 @@ void D_Display (void)
 	    break;
 	if (automapactive)
 	    AM_Drawer ();
-	if (wipe || (viewheight != 200 && fullscreen) )
-	    redrawsbar = true;
-	if (inhelpscreensstate && !inhelpscreens)
-	    redrawsbar = true;              // just put away the help screen
+	// Frame refresh system: ensure status bar is freshly drawn on top of the cleared frame
+	redrawsbar = true;
 	ST_Drawer (viewheight == 200, redrawsbar );
 	fullscreen = viewheight == 200;
 	break;
@@ -296,16 +303,9 @@ void D_Display (void)
     }
 
     // see if the border needs to be updated to the screen
-    if (gamestate == GS_LEVEL && !automapactive && scaledviewwidth != 320)
+    if (gamestate == GS_LEVEL && !automapactive && scaledviewwidth != SCREENWIDTH)
     {
-	if (menuactive || menuactivestate || !viewactivestate)
-	    borderdrawcount = 3;
-	if (borderdrawcount)
-	{
-	    R_DrawViewBorder ();    // erase old menu stuff
-	    borderdrawcount--;
-	}
-
+	R_DrawViewBorder ();
     }
 
     menuactivestate = menuactive;
@@ -338,6 +338,7 @@ void D_Display (void)
     }
     
     // wipe update
+    wipe_active = true;
     wipe_EndScreen(0, 0, SCREENWIDTH, SCREENHEIGHT);
 
     wipestart = I_GetTime () - 1;
@@ -358,6 +359,7 @@ void D_Display (void)
 	M_Drawer ();                            // menu is drawn even on top of wipes
 	I_FinishUpdate ();                      // page flip or blit buffer
     } while (!done);
+    wipe_active = false;
 }
 
 
@@ -444,7 +446,15 @@ void D_PageTicker (void)
 //
 void D_PageDrawer (void)
 {
-    V_DrawPatch (0,0, 0, W_CacheLumpName(pagename, PU_CACHE));
+    if (SCREENWIDTH > 320)
+    {
+        memset(screens[0], 0, SCREENWIDTH * SCREENHEIGHT);
+        V_DrawPatch ((SCREENWIDTH - 320) / 2, 0, 0, W_CacheLumpName(pagename, PU_CACHE));
+    }
+    else
+    {
+        V_DrawPatch (0, 0, 0, W_CacheLumpName(pagename, PU_CACHE));
+    }
 }
 
 

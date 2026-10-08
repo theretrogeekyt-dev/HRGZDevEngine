@@ -195,6 +195,22 @@ void I_FinishUpdate(void)
 #elif defined(__WATCOMC__)
     memcpy((void*)VGA_MEM_BASE, screens[0], VGA_SCREEN_SIZE);
 #endif
+
+    // Frame refresh system:
+    // After the frame has been presented on top of the old one, save it
+    // and clear screens[0] so the next frame is built on a clean slate.
+    if (!wipe_active)
+    {
+        if (screens[4])
+            memcpy(screens[4], screens[0], SCREENWIDTH * SCREENHEIGHT);
+        memset(screens[0], 0, SCREENWIDTH * SCREENHEIGHT);
+    }
+}
+
+void I_ClearFrame(void)
+{
+    if (screens[0])
+        memset(screens[0], 0, SCREENWIDTH * SCREENHEIGHT);
 }
 
 void I_WaitVBL(int count)
@@ -210,7 +226,9 @@ void I_WaitVBL(int count)
 
 void I_ReadScreen(byte* scr)
 {
-    if (screens[0] && scr)
+    if (screens[4] && scr)
+        memcpy(scr, screens[4], SCREENWIDTH * SCREENHEIGHT);
+    else if (screens[0] && scr)
         memcpy(scr, screens[0], SCREENWIDTH * SCREENHEIGHT);
 }
 

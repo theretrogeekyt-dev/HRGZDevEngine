@@ -85,6 +85,16 @@ void I_FinishUpdate(void)
         SavePPM("test_frame100.ppm", screens[0], current_palette);
     }
 
+    if (M_CheckParm("-testmenu") && frame_count == 55)
+    {
+        SavePPM("test_menu.ppm", screens[0], current_palette);
+    }
+
+    if (M_CheckParm("-testmove") && frame_count == 80)
+    {
+        SavePPM("test_movement.ppm", screens[0], current_palette);
+    }
+
     if (frame_count >= max_test_frames)
     {
         printf("\n=======================================================\n");
@@ -93,6 +103,22 @@ void I_FinishUpdate(void)
         printf("=======================================================\n\n");
         I_Quit();
     }
+
+    // Frame refresh system:
+    // After the frame has been presented on top of the old one, save it
+    // and clear screens[0] so the next frame is built on a clean slate.
+    if (!wipe_active)
+    {
+        if (screens[4])
+            memcpy(screens[4], screens[0], SCREENWIDTH * SCREENHEIGHT);
+        memset(screens[0], 0, SCREENWIDTH * SCREENHEIGHT);
+    }
+}
+
+void I_ClearFrame(void)
+{
+    if (screens[0])
+        memset(screens[0], 0, SCREENWIDTH * SCREENHEIGHT);
 }
 
 void I_WaitVBL(int count)
@@ -102,7 +128,9 @@ void I_WaitVBL(int count)
 
 void I_ReadScreen(byte* scr)
 {
-    if (screens[0] && scr)
+    if (screens[4] && scr)
+        memcpy(scr, screens[4], SCREENWIDTH * SCREENHEIGHT);
+    else if (screens[0] && scr)
         memcpy(scr, screens[0], SCREENWIDTH * SCREENHEIGHT);
 }
 
@@ -120,5 +148,39 @@ void I_StartFrame(void)
 
 void I_StartTic(void)
 {
+    if (M_CheckParm("-testmenu"))
+    {
+        if (frame_count == 45)
+        {
+            event_t ev;
+            ev.type = ev_keydown;
+            ev.data1 = KEY_ESCAPE;
+            D_PostEvent(&ev);
+            ev.type = ev_keyup;
+            D_PostEvent(&ev);
+        }
+    }
+
+    if (M_CheckParm("-testmove"))
+    {
+        if (frame_count == 40)
+        {
+            event_t ev;
+            ev.type = ev_keydown;
+            ev.data1 = KEY_UPARROW;
+            D_PostEvent(&ev);
+            ev.data1 = KEY_RIGHTARROW;
+            D_PostEvent(&ev);
+        }
+        else if (frame_count == 90)
+        {
+            event_t ev;
+            ev.type = ev_keyup;
+            ev.data1 = KEY_UPARROW;
+            D_PostEvent(&ev);
+            ev.data1 = KEY_RIGHTARROW;
+            D_PostEvent(&ev);
+        }
+    }
 }
 

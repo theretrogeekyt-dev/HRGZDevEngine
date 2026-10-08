@@ -49,7 +49,7 @@ planefunction_t		ceilingfunc;
 //
 
 // Here comes the obnoxious "visplane".
-#define MAXVISPLANES	128
+#define MAXVISPLANES	512
 visplane_t		visplanes[MAXVISPLANES];
 visplane_t*		lastvisplane;
 visplane_t*		floorplane;
@@ -203,9 +203,9 @@ void R_ClearPlanes (void)
     // left to right mapping
     angle = (viewangle-ANG90)>>ANGLETOFINESHIFT;
 	
-    // scale will be unit scale at SCREENWIDTH/2 distance
-    basexscale = FixedDiv (finecosine[angle],centerxfrac);
-    baseyscale = -FixedDiv (finesine[angle],centerxfrac);
+    // scale will be unit scale at projection distance
+    basexscale = FixedDiv (finecosine[angle],projection);
+    baseyscale = -FixedDiv (finesine[angle],projection);
 }
 
 

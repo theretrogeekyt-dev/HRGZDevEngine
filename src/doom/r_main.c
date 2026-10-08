@@ -554,7 +554,7 @@ void R_InitTextureMapping (void)
     //
     // Calc focallength
     //  so FIELDOFVIEW angles covers SCREENWIDTH.
-    focallength = FixedDiv (centerxfrac,
+    focallength = FixedDiv (projection,
 			    finetangent[FINEANGLES/4+FIELDOFVIEW/2] );
 	
     for (i=0 ; i<FINEANGLES/2 ; i++)
@@ -626,7 +626,7 @@ void R_InitLightTables (void)
 	startmap = ((LIGHTLEVELS-1-i)*2)*NUMCOLORMAPS/LIGHTLEVELS;
 	for (j=0 ; j<MAXLIGHTZ ; j++)
 	{
-	    scale = FixedDiv ((SCREENWIDTH/2*FRACUNIT), (j+1)<<LIGHTZSHIFT);
+	    scale = FixedDiv (160*FRACUNIT, (j+1)<<LIGHTZSHIFT);
 	    scale >>= LIGHTSCALESHIFT;
 	    level = startmap - scale/DISTMAP;
 	    
@@ -684,9 +684,14 @@ void R_ExecuteSetViewSize (void)
 	scaledviewwidth = SCREENWIDTH;
 	viewheight = SCREENHEIGHT;
     }
+    else if (setblocks == 10)
+    {
+	scaledviewwidth = SCREENWIDTH;
+	viewheight = 168;
+    }
     else
     {
-	scaledviewwidth = setblocks*32;
+	scaledviewwidth = (setblocks * SCREENWIDTH / 10) & ~7;
 	viewheight = (setblocks*168/10)&~7;
     }
     
@@ -697,7 +702,10 @@ void R_ExecuteSetViewSize (void)
     centerx = viewwidth/2;
     centerxfrac = centerx<<FRACBITS;
     centeryfrac = centery<<FRACBITS;
-    projection = centerxfrac;
+    if (setblocks >= 10)
+	projection = 160 << FRACBITS;
+    else
+	projection = (160 * setblocks / 10) << FRACBITS;
 
     if (!detailshift)
     {
@@ -727,11 +735,14 @@ void R_ExecuteSetViewSize (void)
 	screenheightarray[i] = viewheight;
     
     // planes
-    for (i=0 ; i<viewheight ; i++)
     {
-	dy = ((i-viewheight/2)<<FRACBITS)+FRACUNIT/2;
-	dy = abs(dy);
-	yslope[i] = FixedDiv ( (viewwidth<<detailshift)/2*FRACUNIT, dy);
+	fixed_t proj_base = (setblocks >= 10) ? (160 * FRACUNIT) : ((160 * setblocks / 10) * FRACUNIT);
+	for (i=0 ; i<viewheight ; i++)
+	{
+	    dy = ((i-viewheight/2)<<FRACBITS)+FRACUNIT/2;
+	    dy = abs(dy);
+	    yslope[i] = FixedDiv (proj_base, dy);
+	}
     }
 	
     for (i=0 ; i<viewwidth ; i++)
