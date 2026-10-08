@@ -1,7 +1,7 @@
 # Build directories and outputs
 build/
 build_cmake/
-bin/
+/bin/
 obj/
 *.o
 *.obj
@@ -10,6 +10,10 @@ obj/
 /doom
 /doom_test
 /DOOM.EXE
+
+# Whitelist bundled toolchain binaries and DPMI server
+!toolchain/
+!toolchain/**
 
 # Temporary test screenshots and logs
 *.ppm

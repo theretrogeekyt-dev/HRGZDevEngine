@@ -17,7 +17,9 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <windows.h>
+#if !defined(_SOCKLEN_T) && !defined(__socklen_t_defined) && !defined(_SSIZE_T_DEFINED) && defined(_MSC_VER) && (_MSC_VER < 1900)
 typedef int socklen_t;
+#endif
 #else
 #include <sys/types.h>
 #include <sys/socket.h>
