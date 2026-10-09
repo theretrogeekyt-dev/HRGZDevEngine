@@ -15,14 +15,33 @@
 #include "doomstat.h"
 #include "i_system.h"
 #include "i_video.h"
+#include "i_video_common.h"
 #include "v_video.h"
 #include "m_argv.h"
 #include "d_main.h"
+#include "m_menu.h"
 #include "i_gamepad.h"
 
 static byte current_palette[256 * 3];
 static int frame_count = 0;
 static int max_test_frames = 150; // Run 150 frames (~4.2 seconds) then exit cleanly
+
+void I_SetResolution(int width, int height, boolean fullscreen)
+{
+    display_width = width;
+    display_height = height;
+    display_fullscreen = fullscreen;
+    current_resolution_index = I_FindResolutionIndex(width, height);
+    printf("I_SetResolution (headless): %dx%d (fullscreen: %s)\n",
+           width, height, fullscreen ? "YES" : "NO");
+}
+
+void I_ToggleFullscreen(void)
+{
+    display_fullscreen = !display_fullscreen;
+    printf("I_ToggleFullscreen (headless): fullscreen = %s\n",
+           display_fullscreen ? "YES" : "NO");
+}
 
 void I_InitGraphics(void)
 {
@@ -31,6 +50,11 @@ void I_InitGraphics(void)
         I_Error("I_InitGraphics: Failed to allocate offscreen framebuffer");
 
     I_Gamepad_Init();
+
+    int win_w = 1280;
+    int win_h = 720;
+    boolean init_fullscreen = false;
+    I_ParseDisplayParams(&win_w, &win_h, &init_fullscreen);
 
     int p = M_CheckParm("-testframes");
     if (p && p < myargc - 1)
@@ -103,6 +127,16 @@ void I_FinishUpdate(void)
         SavePPM("test_gamepad.ppm", screens[0], current_palette);
     }
 
+    if (M_CheckParm("-testdispmenu") && frame_count == 60)
+    {
+        SavePPM("test_display_menu.ppm", screens[0], current_palette);
+    }
+
+    if (M_CheckParm("-testoptions") && frame_count == 60)
+    {
+        SavePPM("test_options_menu.ppm", screens[0], current_palette);
+    }
+
     if (frame_count >= max_test_frames)
     {
         printf("\n=======================================================\n");
@@ -166,6 +200,30 @@ void I_StartTic(void)
             D_PostEvent(&ev);
             ev.type = ev_keyup;
             D_PostEvent(&ev);
+        }
+    }
+
+    if (M_CheckParm("-testdispmenu"))
+    {
+        if (frame_count == 45)
+        {
+            M_StartControlPanel();
+            M_Display(0);
+        }
+        else if (frame_count == 55)
+        {
+            event_t ev;
+            ev.type = ev_keydown; ev.data1 = KEY_RIGHTARROW; D_PostEvent(&ev);
+            ev.type = ev_keyup;   ev.data1 = KEY_RIGHTARROW; D_PostEvent(&ev);
+        }
+    }
+
+    if (M_CheckParm("-testoptions"))
+    {
+        if (frame_count == 45)
+        {
+            M_StartControlPanel();
+            M_Options(0);
         }
     }
 

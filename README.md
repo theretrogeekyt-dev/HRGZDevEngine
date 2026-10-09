@@ -17,6 +17,7 @@ The original 1997 Linux release was riddled with 32-bit pointer assumptions, una
 - **Clean Configuration Subsystem**: Overhauled `m_misc.c` with explicit typed entries (`isstring`), eliminating unsafe pointer-to-integer casts when parsing `default.cfg`.
 - **Accurate Fixed-Point Math**: 64-bit integer accelerated `FixedDiv` and safely parenthesized endian-swapping macros in `m_swap.h`.
 - **16:9 Widescreen Renderer**: 426x200 true widescreen software rendering with sub-pixel accurate horizontal FOV expansion and double-buffered frame refreshing.
+- **Multi-Resolution Display Output**: Dynamic scaling for **720p HD**, **1080p FHD**, **1440p QHD**, **4K UHD**, and **480p SD** with in-game DOOM Options Menu selection, CLI parameters, and `Alt+Enter`/`F11` fullscreen toggling while preserving crisp retro pixel art.
 
 ### 2. Native macOS Driver (`src/hal/mac/`)
 - **Apple Metal Hardware Acceleration**: Zero-latency streaming texture presentation with triple-buffering via Metal and QuartzCore.
@@ -170,8 +171,17 @@ gcc -O2 -std=c99 \
 | Parameter | Description |
 |---|---|
 | `-iwad <path>` | Specify custom IWAD file (`doom1.wad`, `doom.wad`, `doom2.wad`, etc.) |
-| `-scale <1..6>` | Set window scaling multiplier on Windows (default: 3 = 960x600) |
-| `-fullscreen` | Launch directly in fullscreen mode |
+| `-res <w>x<h>` | Set custom window resolution (e.g. `-res 1920x1080`, `-res 1280x720`, `-res 3840x2160`) |
+| `-width <w> -height <h>` | Set custom window dimensions |
+| `-480p` | Launch in 854x480 resolution (480p SD) |
+| `-720p` | Launch in 1280x720 resolution (720p HD, default) |
+| `-900p` | Launch in 1600x900 resolution (900p HD+) |
+| `-1080p` | Launch in 1920x1080 resolution (1080p Full HD) |
+| `-1440p` | Launch in 2560x1440 resolution (1440p QHD) |
+| `-4k` / `-2160p` | Launch in 3840x2160 resolution (4K UHD) |
+| `-scale <1..6>` | Legacy window scaling multiplier (1 to 6) |
+| `-fullscreen` / `-fs` | Launch directly in fullscreen mode |
+| `-windowed` / `-win` | Launch in windowed mode |
 | `-warp <e> <m>` | Warp straight into episode `<e>` map `<m>` (e.g. `-warp 1 1`) |
 | `-skill <1..5>` | Select gameplay difficulty (1: I'm Too Young to Die .. 5: Nightmare) |
 | `-nomouse` | Disable mouse control and cursor locking |
@@ -199,6 +209,7 @@ gcc -O2 -std=c99 \
 | **Automap** | `Tab` | - |
 | **Pause** | `Pause` | - |
 | **Main Menu** | `Escape` | - |
+| **Toggle Fullscreen** | `Alt+Enter` | `F11` |
 
 ### Controller Support (PlayStation & Xbox)
 

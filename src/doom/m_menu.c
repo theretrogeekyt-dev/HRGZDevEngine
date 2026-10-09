@@ -258,6 +258,15 @@ void M_DrawHostLobby(void);
 void M_DrawClientLobby(void);
 
 //
+// PROTOTYPES FOR DISPLAY RESOLUTION MENU
+//
+void M_Display(int choice);
+void M_ChangeDispRes(int choice);
+void M_ChangeDispMode(int choice);
+void M_ApplyDisp(int choice);
+void M_DrawDisplay(void);
+
+//
 // DOOM MENU
 //
 enum
@@ -919,6 +928,7 @@ enum
     mousesens,
     option_empty2,
     soundvol,
+    displayopt,
     opt_end
 } options_e;
 
@@ -931,7 +941,8 @@ menuitem_t OptionsMenu[]=
     {-1,"",0},
     {2,"M_MSENS",	M_ChangeSensitivity,'m'},
     {-1,"",0},
-    {1,"M_SVOL",	M_Sound,'s'}
+    {1,"M_SVOL",	M_Sound,'s'},
+    {1,"M_DISP",	M_Display,'d'}
 };
 
 menu_t  OptionsDef =
@@ -940,7 +951,39 @@ menu_t  OptionsDef =
     &MainDef,
     OptionsMenu,
     M_DrawOptions,
-    60,37,
+    60,22,
+    0
+};
+
+//
+// DISPLAY RESOLUTION MENU
+//
+enum
+{
+    disp_res_idx,
+    disp_blank1_idx,
+    disp_mode_idx,
+    disp_blank2_idx,
+    disp_apply_idx,
+    disp_end
+} display_e;
+
+menuitem_t DisplayMenu[]=
+{
+    {2, "", M_ChangeDispRes, 'r'},
+    {-1, "", 0},
+    {2, "", M_ChangeDispMode, 'm'},
+    {-1, "", 0},
+    {1, "", M_ApplyDisp, 'a'}
+};
+
+menu_t DisplayDef =
+{
+    disp_end,
+    &OptionsDef,
+    DisplayMenu,
+    M_DrawDisplay,
+    24, 48,
     0
 };
 
@@ -1955,7 +1998,7 @@ char	msgNames[2][9]		= {"M_MSGOFF","M_MSGON"};
 void M_DrawOptions(void)
 {
     int mx = (SCREENWIDTH - 320) / 2;
-    V_DrawPatchDirect (108 + mx, 15, 0, W_CacheLumpName("M_OPTTTL", PU_CACHE));
+    V_DrawPatchDirect (108 + mx, 5, 0, W_CacheLumpName("M_OPTTTL", PU_CACHE));
 	
     V_DrawPatchDirect (OptionsDef.x + 175,OptionsDef.y+LINEHEIGHT*detail,0,
 		       W_CacheLumpName(detailNames[detailLevel],PU_CACHE));
@@ -1973,6 +2016,101 @@ void M_DrawOptions(void)
 void M_Options(int choice)
 {
     M_SetupNextMenu(&OptionsDef);
+}
+
+//
+// M_Display & Resolution Switching
+//
+static int menu_res_choice = 1;
+static int menu_fs_choice = 0;
+
+void M_Display(int choice)
+{
+    menu_res_choice = current_resolution_index;
+    menu_fs_choice = display_fullscreen ? 1 : 0;
+    M_SetupNextMenu(&DisplayDef);
+}
+
+void M_ChangeDispRes(int choice)
+{
+    if (choice == 0)
+    {
+        menu_res_choice--;
+        if (menu_res_choice < 0)
+            menu_res_choice = NUM_DISPLAY_RESOLUTIONS - 1;
+    }
+    else
+    {
+        menu_res_choice++;
+        if (menu_res_choice >= NUM_DISPLAY_RESOLUTIONS)
+            menu_res_choice = 0;
+    }
+}
+
+void M_ChangeDispMode(int choice)
+{
+    menu_fs_choice = 1 - menu_fs_choice;
+}
+
+void M_ApplyDisp(int choice)
+{
+    I_SetResolutionIndex(menu_res_choice, menu_fs_choice != 0);
+    S_StartSound(NULL, sfx_swtchx);
+}
+
+void M_DrawDisplay(void)
+{
+    char buf[80];
+    int y;
+    int vw;
+
+    if (W_CheckNumForName("M_DISOPT") >= 0)
+    {
+        int title_x = (SCREENWIDTH - 212) / 2;
+        V_DrawPatchDirect(title_x, 16, 0, W_CacheLumpName("M_DISOPT", PU_CACHE));
+    }
+    else
+    {
+        strcpy(buf, "DISPLAY OPTIONS");
+        vw = M_StringWidth(buf);
+        M_WriteText((SCREENWIDTH - vw) / 2, 16, buf);
+    }
+
+    // Row 0: Resolution
+    y = DisplayDef.y + disp_res_idx * LINEHEIGHT;
+    M_WriteText(DisplayDef.x, y, "RESOLUTION:");
+    M_DrawBox(DisplayDef.x + 112, y, 19);
+    sprintf(buf, "<< %s >>", display_resolutions[menu_res_choice].name);
+    vw = M_StringWidth(buf);
+    M_WriteText(DisplayDef.x + 112 + (152 - vw) / 2, y, buf);
+
+    // Row 2: Display Mode
+    y = DisplayDef.y + disp_mode_idx * LINEHEIGHT;
+    M_WriteText(DisplayDef.x, y, "DISPLAY MODE:");
+    M_DrawBox(DisplayDef.x + 112, y, 19);
+    sprintf(buf, "<< %s >>", menu_fs_choice ? "FULLSCREEN" : "WINDOWED");
+    vw = M_StringWidth(buf);
+    M_WriteText(DisplayDef.x + 112 + (152 - vw) / 2, y, buf);
+
+    // Row 4: Apply Button
+    y = DisplayDef.y + disp_apply_idx * LINEHEIGHT;
+    M_DrawBox(DisplayDef.x + 36, y, 24);
+    strcpy(buf, ">> APPLY RESOLUTION <<");
+    vw = M_StringWidth(buf);
+    M_WriteText(DisplayDef.x + 36 + (192 - vw) / 2, y, buf);
+
+    // Bottom Hints
+    strcpy(buf, "USE ARROWS TO CHANGE SETTINGS");
+    vw = M_StringWidth(buf);
+    M_WriteText((SCREENWIDTH - vw) / 2, 138, buf);
+
+    strcpy(buf, "PRESS ALT+ENTER OR F11 FOR FULLSCREEN");
+    vw = M_StringWidth(buf);
+    M_WriteText((SCREENWIDTH - vw) / 2, 148, buf);
+
+    strcpy(buf, "PRESS ESC TO RETURN");
+    vw = M_StringWidth(buf);
+    M_WriteText((SCREENWIDTH - vw) / 2, 158, buf);
 }
 
 
@@ -2523,9 +2661,27 @@ boolean M_Responder (event_t* ev)
     static  int     lasty = 0;
     static  int     mousex = 0;
     static  int     lastx = 0;
-	
+    static  boolean alt_pressed_state = false;
+
+    // Fullscreen Hotkeys: Alt+Enter or F11 toggle fullscreen immediately
+    if (ev->type == ev_keydown)
+    {
+        if (ev->data1 == KEY_RALT || ev->data1 == KEY_LALT)
+            alt_pressed_state = true;
+        else if (ev->data1 == KEY_F11 || (ev->data1 == KEY_ENTER && alt_pressed_state))
+        {
+            I_ToggleFullscreen();
+            return true;
+        }
+    }
+    else if (ev->type == ev_keyup)
+    {
+        if (ev->data1 == KEY_RALT || ev->data1 == KEY_LALT)
+            alt_pressed_state = false;
+    }
+
     ch = -1;
-	
+
     if (ev->type == ev_joystick && joywait < I_GetTime())
     {
 	if (ev->data3 == -1)
@@ -3064,6 +3220,10 @@ void M_Drawer (void)
 		V_DrawPatchDirect (x,y,0,
 				   W_CacheLumpName(currentMenu->menuitems[i].name ,PU_CACHE));
 	    }
+	    else if (strcmp(currentMenu->menuitems[i].name, "M_DISP") == 0)
+	    {
+		M_DrawMenuText (x, y, "DISPLAY");
+	    }
 	    else
 	    {
 		M_DrawMenuText (x, y, currentMenu->menuitems[i].name);
@@ -3163,6 +3323,7 @@ void M_Init (void)
         EpiDef.x += mx;
         OptionsDef.x += mx;
         SoundDef.x += mx;
+        DisplayDef.x += mx;
         LoadDef.x += mx;
         SaveDef.x += mx;
         ReadDef1.x += mx;

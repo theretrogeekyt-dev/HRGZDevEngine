@@ -55,6 +55,8 @@ void M_Init (void);
 void M_StartControlPanel (void);
 void M_ClearMenus (void);
 void M_Multiplayer (int choice);
+void M_Options (int choice);
+void M_Display (int choice);
 
 #endif    
 //-----------------------------------------------------------------------------

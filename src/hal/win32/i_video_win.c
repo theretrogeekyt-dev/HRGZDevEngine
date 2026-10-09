@@ -24,6 +24,7 @@
 #include "doomstat.h"
 #include "i_system.h"
 #include "i_video.h"
+#include "i_video_common.h"
 #include "v_video.h"
 #include "m_argv.h"
 #include "d_main.h"
@@ -357,32 +358,96 @@ void I_InitGraphics(void)
 
     RegisterClassExA(&wc);
 
-    int scale = DEFAULT_SCALE;
-    int p = M_CheckParm("-scale");
-    if (p && p < myargc - 1)
-        scale = atoi(myargv[p + 1]);
-    if (scale < 1) scale = 1;
-    if (scale > 6) scale = 6;
+static RECT windowed_rect = { 0, 0, 1280, 720 };
 
-    win_width = SCREENWIDTH * scale;
-    win_height = (int)(SCREENHEIGHT * scale * 1.2);
+void I_SetResolution(int width, int height, boolean fullscreen)
+{
+    if (!hwnd_main)
+        return;
 
-    RECT rect = {0, 0, win_width, win_height};
-    AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, FALSE);
+    display_width = width;
+    display_height = height;
+    display_fullscreen = fullscreen;
+    current_resolution_index = I_FindResolutionIndex(width, height);
 
-    int screen_w = GetSystemMetrics(SM_CXSCREEN);
-    int screen_h = GetSystemMetrics(SM_CYSCREEN);
-    int pos_x = (screen_w - (rect.right - rect.left)) / 2;
-    int pos_y = (screen_h - (rect.bottom - rect.top)) / 2;
+    if (fullscreen)
+    {
+        GetWindowRect(hwnd_main, &windowed_rect);
+        int screen_w = GetSystemMetrics(SM_CXSCREEN);
+        int screen_h = GetSystemMetrics(SM_CYSCREEN);
+        SetWindowLongPtr(hwnd_main, GWL_STYLE, WS_POPUP | WS_VISIBLE);
+        SetWindowPos(hwnd_main, HWND_TOP, 0, 0, screen_w, screen_h,
+                     SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+    }
+    else
+    {
+        DWORD style = WS_OVERLAPPEDWINDOW | WS_VISIBLE;
+        RECT rect = { 0, 0, width, height };
+        AdjustWindowRect(&rect, style, FALSE);
+        int win_w = rect.right - rect.left;
+        int win_h = rect.bottom - rect.top;
+
+        int screen_w = GetSystemMetrics(SM_CXSCREEN);
+        int screen_h = GetSystemMetrics(SM_CYSCREEN);
+        int pos_x = (screen_w - win_w) / 2;
+        int pos_y = (screen_h - win_h) / 2;
+        if (pos_x < 0) pos_x = 0;
+        if (pos_y < 0) pos_y = 0;
+
+        SetWindowLongPtr(hwnd_main, GWL_STYLE, style);
+        SetWindowPos(hwnd_main, HWND_NOTOPMOST, pos_x, pos_y, win_w, win_h,
+                     SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+    }
+    printf("I_SetResolution: %dx%d (fullscreen: %s)\n", width, height, fullscreen ? "YES" : "NO");
+}
+
+void I_ToggleFullscreen(void)
+{
+    I_SetResolution(display_width, display_height, !display_fullscreen);
+}
+
+    int win_w = 1280;
+    int win_h = 720;
+    boolean init_fullscreen = false;
+    I_ParseDisplayParams(&win_w, &win_h, &init_fullscreen);
+
+    win_width = win_w;
+    win_height = win_h;
+
+    DWORD style = WS_OVERLAPPEDWINDOW | WS_VISIBLE;
+    int pos_x = 0, pos_y = 0;
+    int final_w = win_w, final_h = win_h;
+
+    if (init_fullscreen)
+    {
+        style = WS_POPUP | WS_VISIBLE;
+        final_w = GetSystemMetrics(SM_CXSCREEN);
+        final_h = GetSystemMetrics(SM_CYSCREEN);
+        pos_x = 0;
+        pos_y = 0;
+    }
+    else
+    {
+        RECT rect = {0, 0, win_w, win_h};
+        AdjustWindowRect(&rect, style, FALSE);
+        final_w = rect.right - rect.left;
+        final_h = rect.bottom - rect.top;
+
+        int screen_w = GetSystemMetrics(SM_CXSCREEN);
+        int screen_h = GetSystemMetrics(SM_CYSCREEN);
+        pos_x = (screen_w - final_w) / 2;
+        pos_y = (screen_h - final_h) / 2;
+        if (pos_x < 0) pos_x = 0;
+        if (pos_y < 0) pos_y = 0;
+    }
 
     hwnd_main = CreateWindowExA(
         0,
         DOOM_WINDOW_CLASS,
         "HRGZDevEngine DOOM (OpenGL)",
-        WS_OVERLAPPEDWINDOW | WS_VISIBLE,
+        style,
         pos_x, pos_y,
-        rect.right - rect.left,
-        rect.bottom - rect.top,
+        final_w, final_h,
         NULL, NULL, hInstance, NULL
     );
 

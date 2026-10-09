@@ -27,6 +27,7 @@
 #include "doomstat.h"
 #include "i_system.h"
 #include "i_video.h"
+#include "i_video_common.h"
 #include "v_video.h"
 #include "m_argv.h"
 #include "d_main.h"
@@ -443,10 +444,95 @@ static boolean InitMetalPipeline(void)
         mouse_captured = false;
     }
 }
+- (void)windowDidEnterFullScreen:(NSNotification *)notification
+{
+    (void)notification;
+    display_fullscreen = true;
+    if (doom_window && metal_layer)
+    {
+        NSSize sz = [doom_window contentView].bounds.size;
+        CGFloat scale = [doom_window backingScaleFactor];
+        metal_layer.contentsScale = scale;
+        metal_layer.drawableSize = CGSizeMake(sz.width * scale, sz.height * scale);
+    }
+}
+- (void)windowDidExitFullScreen:(NSNotification *)notification
+{
+    (void)notification;
+    display_fullscreen = false;
+    if (doom_window && metal_layer)
+    {
+        NSSize sz = [doom_window contentView].bounds.size;
+        CGFloat scale = [doom_window backingScaleFactor];
+        metal_layer.contentsScale = scale;
+        metal_layer.drawableSize = CGSizeMake(sz.width * scale, sz.height * scale);
+    }
+}
+- (void)windowDidResize:(NSNotification *)notification
+{
+    (void)notification;
+    if (doom_window && metal_layer)
+    {
+        NSSize sz = [doom_window contentView].bounds.size;
+        display_width = (int)sz.width;
+        display_height = (int)sz.height;
+        CGFloat scale = [doom_window backingScaleFactor];
+        metal_layer.contentsScale = scale;
+        metal_layer.drawableSize = CGSizeMake(sz.width * scale, sz.height * scale);
+    }
+}
 @end
 
 static DoomView*           doom_view = nil;
 static DoomWindowDelegate* doom_delegate = nil;
+
+void I_SetResolution(int width, int height, boolean fullscreen)
+{
+    if (!doom_window)
+        return;
+
+    display_width = width;
+    display_height = height;
+
+    boolean is_currently_fs = (([doom_window styleMask] & NSWindowStyleMaskFullScreen) != 0);
+
+    if (fullscreen)
+    {
+        if (!is_currently_fs)
+        {
+            [doom_window toggleFullScreen:nil];
+        }
+    }
+    else
+    {
+        if (is_currently_fs)
+        {
+            [doom_window toggleFullScreen:nil];
+        }
+
+        [doom_window setContentSize:NSMakeSize(width, height)];
+        [doom_window center];
+
+        if (metal_layer)
+        {
+            CGFloat scale = [doom_window backingScaleFactor];
+            metal_layer.contentsScale = scale;
+            metal_layer.drawableSize = CGSizeMake(width * scale, height * scale);
+        }
+    }
+
+    display_fullscreen = fullscreen;
+    current_resolution_index = I_FindResolutionIndex(width, height);
+    printf("I_SetResolution: %dx%d (fullscreen: %s)\n", width, height, fullscreen ? "YES" : "NO");
+}
+
+void I_ToggleFullscreen(void)
+{
+    if (!doom_window)
+        return;
+
+    [doom_window toggleFullScreen:nil];
+}
 
 void I_InitGraphics(void)
 {
@@ -457,14 +543,10 @@ void I_InitGraphics(void)
     if (!screens[0])
         I_Error("I_InitGraphics: Failed to allocate framebuffer");
 
-    int scale = DEFAULT_SCALE;
-    int p = M_CheckParm("-scale");
-    if (p && p < myargc - 1)
-    {
-        scale = atoi(myargv[p + 1]);
-        if (scale < 1) scale = 1;
-        if (scale > 6) scale = 6;
-    }
+    int win_w = 1280;
+    int win_h = 720;
+    boolean init_fullscreen = false;
+    I_ParseDisplayParams(&win_w, &win_h, &init_fullscreen);
 
     [NSApplication sharedApplication];
     [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
@@ -486,8 +568,6 @@ void I_InitGraphics(void)
     // Initialize Metal pipeline before creating window/view
     InitMetalPipeline();
 
-    int win_w = SCREENWIDTH * scale;
-    int win_h = (int)(SCREENHEIGHT * scale * 1.2);
     NSRect frame = NSMakeRect(0, 0, win_w, win_h);
     doom_window = [[NSWindow alloc]
         initWithContentRect:frame
@@ -500,6 +580,7 @@ void I_InitGraphics(void)
 
     [doom_window setTitle:@"HRGZDevEngine DOOM (Apple Metal)"];
     [doom_window setAcceptsMouseMovedEvents:YES];
+    [doom_window setCollectionBehavior:NSWindowCollectionBehaviorFullScreenPrimary];
 
     doom_delegate = [[DoomWindowDelegate alloc] init];
     [doom_window setDelegate:doom_delegate];
@@ -509,6 +590,11 @@ void I_InitGraphics(void)
     [doom_window makeFirstResponder:doom_view];
     [doom_window center];
     [doom_window makeKeyAndOrderFront:nil];
+
+    if (init_fullscreen)
+    {
+        [doom_window toggleFullScreen:nil];
+    }
 
     [NSApp activateIgnoringOtherApps:YES];
 

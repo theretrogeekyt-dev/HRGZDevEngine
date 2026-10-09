@@ -31,6 +31,28 @@
 #endif
 
 
+// Display output resolution descriptor
+typedef struct
+{
+    int width;
+    int height;
+    const char* name;
+} display_resolution_t;
+
+#define NUM_DISPLAY_RESOLUTIONS 7
+extern const display_resolution_t display_resolutions[NUM_DISPLAY_RESOLUTIONS];
+
+extern int current_resolution_index;
+extern int display_width;
+extern int display_height;
+extern boolean display_fullscreen;
+
+// Dynamic display resolution and window mode switching
+void I_SetResolution(int width, int height, boolean fullscreen);
+void I_SetResolutionIndex(int index, boolean fullscreen);
+void I_ToggleFullscreen(void);
+void I_GetResolution(int* width, int* height, boolean* fullscreen);
+
 // Called by D_DoomMain,
 // determines the hardware configuration
 // and sets up the video mode

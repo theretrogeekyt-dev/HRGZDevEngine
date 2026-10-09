@@ -171,6 +171,10 @@ jobs:
         run: |
           ./build/test/doom_test -iwad doom1.wad -warp 1 1 -testframes 120 -testgamepad
 
+      - name: Run Display Options Resolution Verification (100 Frames)
+        run: |
+          ./build/test/doom_test -iwad doom1.wad -warp 1 1 -testframes 100 -testdispmenu
+
       - name: Build Linux SDL2 DOOM Executable
         run: |
           mkdir -p build/linux
@@ -278,6 +282,7 @@ jobs:
           ---
 
           ### ✨ Key Features
+          - **Multi-Resolution Display Output**: Dynamic scaling for 720p HD, 1080p FHD, 1440p QHD, 4K UHD, and 480p with live in-game Options Menu, CLI flags (-res/-1080p/-4k/-scale), and Alt+Enter/F11 fullscreen hotkeys
           - **Hardware-Accelerated Rendering**: Native Apple Metal (macOS) and OpenGL (Windows) streaming presentation
           - **16:9 True Widescreen**: 426x200 sub-pixel resolution scaled to modern displays with extended horizontal field of view
           - **Frame Refresh & Clearing System**: Double-buffered frame clearing and tear-free vertical sync

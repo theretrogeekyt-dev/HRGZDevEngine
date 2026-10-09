@@ -16,6 +16,7 @@
 #include "doomstat.h"
 #include "i_system.h"
 #include "i_video.h"
+#include "i_video_common.h"
 #include "v_video.h"
 #include "m_argv.h"
 #include "d_main.h"
@@ -27,6 +28,39 @@ static SDL_Texture*        sdl_texture = NULL;
 static SDL_GameController* sdl_controller = NULL;
 static uint32_t            sdl_palette[256];
 static uint32_t            sdl_pixels[SCREENWIDTH * SCREENHEIGHT];
+
+void I_SetResolution(int width, int height, boolean fullscreen)
+{
+    if (!sdl_window)
+        return;
+
+    display_width = width;
+    display_height = height;
+    display_fullscreen = fullscreen;
+    current_resolution_index = I_FindResolutionIndex(width, height);
+
+    if (fullscreen)
+    {
+        SDL_SetWindowFullscreen(sdl_window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+    }
+    else
+    {
+        SDL_SetWindowFullscreen(sdl_window, 0);
+        SDL_SetWindowSize(sdl_window, width, height);
+        SDL_SetWindowPosition(sdl_window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+    }
+    printf("I_SetResolution: %dx%d (fullscreen: %s)\n", width, height, fullscreen ? "YES" : "NO");
+}
+
+void I_ToggleFullscreen(void)
+{
+    if (!sdl_window)
+        return;
+
+    Uint32 flags = SDL_GetWindowFlags(sdl_window);
+    boolean is_fs = (flags & SDL_WINDOW_FULLSCREEN_DESKTOP) != 0;
+    I_SetResolution(display_width, display_height, !is_fs);
+}
 
 static void SDL_OpenController(int index)
 {
@@ -93,18 +127,13 @@ void I_InitGraphics(void)
     if (!screens[0])
         I_Error("I_InitGraphics: Could not allocate primary screen buffer");
 
-    int scale = 3;
-    int p = M_CheckParm("-scale");
-    if (p && p < myargc - 1)
-        scale = atoi(myargv[p + 1]);
-    if (scale < 1) scale = 1;
-    if (scale > 6) scale = 6;
-
-    int win_w = SCREENWIDTH * scale;
-    int win_h = (int)(SCREENHEIGHT * scale * 1.2);
+    int win_w = 1280;
+    int win_h = 720;
+    boolean init_fullscreen = false;
+    I_ParseDisplayParams(&win_w, &win_h, &init_fullscreen);
 
     uint32_t flags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
-    if (M_CheckParm("-fullscreen"))
+    if (init_fullscreen)
         flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
 
     sdl_window = SDL_CreateWindow(
