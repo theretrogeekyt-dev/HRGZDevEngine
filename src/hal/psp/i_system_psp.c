@@ -45,7 +45,7 @@ void I_Init(void)
 byte* I_ZoneBase(int* size)
 {
     // On PSP (32MB RAM on Fat, 64MB on Slim), attempt descending zone allocations
-    int try_mb[] = { 12, 10, 8, 6 };
+    int try_mb[] = { 12, 10, 8, 6, 4 };
     int num_tries = sizeof(try_mb) / sizeof(try_mb[0]);
 
     int p = M_CheckParm("-mb");
@@ -62,11 +62,12 @@ byte* I_ZoneBase(int* size)
         byte* zone = (byte*)malloc(*size);
         if (zone)
         {
+            pspDebugScreenPrintf("  Zone memory allocated: %d MB\n", try_mb[i]);
             return zone;
         }
     }
 
-    I_Error("I_ZoneBase: Failed to allocate contiguous DOOM zone memory (tried 12MB down to 6MB)");
+    I_Error("I_ZoneBase: Failed to allocate contiguous DOOM zone memory (tried 12MB down to 4MB)");
     return NULL;
 }
 

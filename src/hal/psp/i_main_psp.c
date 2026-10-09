@@ -23,7 +23,8 @@
 // PSP Homebrew Module Info
 PSP_MODULE_INFO("HRGZ_DOOM", 0, 1, 0);
 PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER | THREAD_ATTR_VFPU);
-PSP_HEAP_SIZE_KB(18432); // Safe 18MB heap for DOOM zone + audio + lumps (leaves headroom for thread stacks)
+PSP_MAIN_THREAD_STACK_SIZE_KB(1024); // 1MB main stack to avoid stack overflows
+PSP_HEAP_SIZE_KB(-2048); // Dynamic heap: all available RAM minus 2MB for thread stacks
 
 static int exit_request = 0;
 
@@ -59,11 +60,19 @@ static int SetupCallbacks(void)
 
 int main(int argc, char **argv)
 {
+    // Initialize debug screen immediately
+    pspDebugScreenInit();
+
+    pspDebugScreenSetTextColor(0xFFFFFFFF);
+    pspDebugScreenPrintf("==================================================\n");
+    pspDebugScreenPrintf(" HRGZDevEngine DOOM PSP (v%d.%d)\n", VERSION / 100, VERSION % 100);
+    pspDebugScreenPrintf("==================================================\n\n");
+
     // Initialize callbacks so the user can exit to the PSP XMB
     SetupCallbacks();
 
     // Switch working directory to the directory of the EBOOT.PBP so doom1.wad is found
-    if (argc > 0 && argv[0])
+    if (argc > 0 && argv && argv[0])
     {
         char path[256];
         strncpy(path, argv[0], sizeof(path) - 1);
@@ -79,6 +88,18 @@ int main(int argc, char **argv)
             psp_game_dir[sizeof(psp_game_dir) - 1] = '\0';
         }
     }
+
+    // Strip any trailing slashes from psp_game_dir
+    size_t dirlen = strlen(psp_game_dir);
+    while (dirlen > 0 && (psp_game_dir[dirlen - 1] == '/' || psp_game_dir[dirlen - 1] == '\\'))
+    {
+        psp_game_dir[--dirlen] = '\0';
+    }
+
+    if (psp_game_dir[0] != '\0')
+        pspDebugScreenPrintf("Game Directory: %s\n", psp_game_dir);
+    else
+        pspDebugScreenPrintf("Game Directory: .\n");
 
     myargc = argc;
     myargv = argv;

@@ -46,6 +46,12 @@ static const char rcsid[] = "$Id: d_main.c,v 1.8 1997/02/03 22:45:09 b1 Exp $";
 #include <unistd.h>
 #endif
 
+#if defined(PSP) || defined(__PSP__)
+#include <pspkernel.h>
+#include <pspdebug.h>
+#include <pspctrl.h>
+#endif
+
 
 
 #include "doomdef.h"
@@ -826,7 +832,19 @@ void IdentifyVersion (void)
     }
 
 #if defined(PSP) || defined(__PSP__)
-    const char* psp_paths[] = {
+    const char* psp_dirs[] = {
+        psp_game_dir,
+        ".",
+        "ms0:/PSP/GAME/HRGZDOOM",
+        "ms0:/PSP/GAME/hrgzdoom",
+        "ms0:/PSP/GAME/Doom",
+        "ms0:/PSP/GAME/DOOM",
+        "ef0:/PSP/GAME/HRGZDOOM",
+        "ef0:/PSP/GAME/hrgzdoom",
+        "ef0:/PSP/GAME/Doom",
+        "ef0:/PSP/GAME/DOOM"
+    };
+    const char* psp_wads[] = {
         "doom1.wad",
         "DOOM1.WAD",
         "doom.wad",
@@ -835,31 +853,70 @@ void IdentifyVersion (void)
         "DOOM2.WAD",
         "doomu.wad",
         "DOOMU.WAD",
-        "ms0:/PSP/GAME/HRGZDOOM/doom1.wad",
-        "ms0:/PSP/GAME/HRGZDOOM/DOOM1.WAD",
-        "ms0:/PSP/GAME/HRGZDOOM/doom.wad",
-        "ms0:/PSP/GAME/HRGZDOOM/DOOM.WAD",
-        "ms0:/PSP/GAME/HRGZDOOM/doom2.wad",
-        "ms0:/PSP/GAME/HRGZDOOM/DOOM2.WAD",
-        "ms0:/PSP/GAME/HRGZDOOM/doomu.wad",
-        "ms0:/PSP/GAME/HRGZDOOM/DOOMU.WAD"
+        "plutonia.wad",
+        "PLUTONIA.WAD",
+        "tnt.wad",
+        "TNT.WAD"
     };
-    for (size_t p_idx = 0; p_idx < sizeof(psp_paths)/sizeof(psp_paths[0]); p_idx++)
+
+    pspDebugScreenPrintf("[PSP] Scanning for DOOM IWAD...\n");
+    char candidate_path[300];
+    for (size_t d = 0; d < sizeof(psp_dirs)/sizeof(psp_dirs[0]); d++)
     {
-        if (check_file_exists(psp_paths[p_idx]))
+        if (psp_dirs[d][0] == '\0')
+            continue;
+
+        for (size_t w = 0; w < sizeof(psp_wads)/sizeof(psp_wads[0]); w++)
         {
-            if (strstr(psp_paths[p_idx], "doom1") || strstr(psp_paths[p_idx], "DOOM1"))
-                gamemode = shareware;
-            else if (strstr(psp_paths[p_idx], "doom2") || strstr(psp_paths[p_idx], "DOOM2"))
-                gamemode = commercial;
-            else if (strstr(psp_paths[p_idx], "doomu") || strstr(psp_paths[p_idx], "DOOMU"))
-                gamemode = retail;
-            else
-                gamemode = registered;
-            D_AddFile((char*)psp_paths[p_idx]);
-            return;
+            snprintf(candidate_path, sizeof(candidate_path), "%s/%s", psp_dirs[d], psp_wads[w]);
+            if (check_file_exists(candidate_path))
+            {
+                if (strstr(candidate_path, "doom1") || strstr(candidate_path, "DOOM1"))
+                    gamemode = shareware;
+                else if (strstr(candidate_path, "doom2") || strstr(candidate_path, "DOOM2") ||
+                         strstr(candidate_path, "plutonia") || strstr(candidate_path, "PLUTONIA") ||
+                         strstr(candidate_path, "tnt") || strstr(candidate_path, "TNT"))
+                    gamemode = commercial;
+                else if (strstr(candidate_path, "doomu") || strstr(candidate_path, "DOOMU"))
+                    gamemode = retail;
+                else
+                    gamemode = registered;
+
+                D_AddFile(strdup(candidate_path));
+                pspDebugScreenSetTextColor(0xFF00FF00); // Green
+                pspDebugScreenPrintf(" [OK] Found IWAD: %s\n", candidate_path);
+                pspDebugScreenSetTextColor(0xFFFFFFFF); // White
+                return;
+            }
         }
     }
+
+    // No IWAD found on PSP: Display clear diagnostic screen and wait for user exit
+    pspDebugScreenSetTextColor(0xFF0000FF); // Red
+    pspDebugScreenPrintf("\n ==================================================\n");
+    pspDebugScreenPrintf("  HRGZDevEngine DOOM PSP - IWAD NOT FOUND\n");
+    pspDebugScreenPrintf(" ==================================================\n\n");
+    pspDebugScreenSetTextColor(0xFFFFFFFF); // White
+    pspDebugScreenPrintf(" Could not find DOOM1.WAD, DOOM.WAD, or DOOM2.WAD.\n\n");
+    pspDebugScreenPrintf(" Please copy an IWAD file (e.g. DOOM1.WAD) to:\n");
+    if (psp_game_dir[0] != '\0')
+        pspDebugScreenPrintf("  -> %s/\n", psp_game_dir);
+    else
+        pspDebugScreenPrintf("  -> ms0:/PSP/GAME/HRGZDOOM/\n");
+    pspDebugScreenPrintf("\n");
+    pspDebugScreenSetTextColor(0xFF00FFFF); // Yellow
+    pspDebugScreenPrintf(" Press (X), (O), or START to return to PSP XMB...\n");
+
+    SceCtrlData pad;
+    for (int i = 0; i < 3600; i++)
+    {
+        sceCtrlReadBufferPositive(&pad, 1);
+        if (pad.Buttons & (PSP_CTRL_CROSS | PSP_CTRL_CIRCLE | PSP_CTRL_START))
+            break;
+        sceKernelDelayThread(16666);
+    }
+    sceKernelExitGame();
+    exit(0);
 #endif
 
     printf("Game mode indeterminate.\n");
@@ -1166,17 +1223,32 @@ void D_DoomMain (void)
     }
     
     // init subsystems
+#if defined(PSP) || defined(__PSP__)
+    pspDebugScreenPrintf("[PSP] Initializing screen buffers (V_Init)...\n");
+#endif
     printf ("V_Init: allocate screens.\n");
     V_Init ();
 
+#if defined(PSP) || defined(__PSP__)
+    pspDebugScreenPrintf("[PSP] Loading system defaults (M_LoadDefaults)...\n");
+#endif
     printf ("M_LoadDefaults: Load system defaults.\n");
     M_LoadDefaults ();              // load before initing other systems
 
+#if defined(PSP) || defined(__PSP__)
+    pspDebugScreenPrintf("[PSP] Initializing memory zone (Z_Init)...\n");
+#endif
     printf ("Z_Init: Init zone memory allocation daemon. \n");
     Z_Init ();
 
+#if defined(PSP) || defined(__PSP__)
+    pspDebugScreenPrintf("[PSP] Loading WAD files (W_Init)...\n");
+#endif
     printf ("W_Init: Init WADfiles.\n");
     W_InitMultipleFiles (wadfiles);
+#if defined(PSP) || defined(__PSP__)
+    pspDebugScreenPrintf("  Loaded %d lumps from WAD.\n", numlumps);
+#endif
     
 
     // Check for -file in shareware
@@ -1249,21 +1321,36 @@ void D_DoomMain (void)
     printf ("M_Init: Init miscellaneous info.\n");
     M_Init ();
 
+#if defined(PSP) || defined(__PSP__)
+    pspDebugScreenPrintf("[PSP] Initializing renderer (R_Init)...\n");
+#endif
     printf ("R_Init: Init DOOM refresh daemon - ");
     R_Init ();
 
+#if defined(PSP) || defined(__PSP__)
+    pspDebugScreenPrintf("[PSP] Initializing playloop (P_Init)...\n");
+#endif
     printf ("\nP_Init: Init Playloop state.\n");
     P_Init ();
 
+#if defined(PSP) || defined(__PSP__)
+    pspDebugScreenPrintf("[PSP] Initializing timers (I_Init)...\n");
+#endif
     printf ("I_Init: Setting up machine state.\n");
     I_Init ();
 
     printf ("D_CheckNetGame: Checking network game status.\n");
     D_CheckNetGame ();
 
+#if defined(PSP) || defined(__PSP__)
+    pspDebugScreenPrintf("[PSP] Initializing sound (S_Init)...\n");
+#endif
     printf ("S_Init: Setting up sound.\n");
     S_Init (snd_SfxVolume /* *8 */, snd_MusicVolume /* *8*/ );
 
+#if defined(PSP) || defined(__PSP__)
+    pspDebugScreenPrintf("[PSP] Initializing HUD & Status Bar...\n");
+#endif
     printf ("HU_Init: Setting up heads up display.\n");
     HU_Init ();
 
@@ -1324,6 +1411,13 @@ void D_DoomMain (void)
 	    D_StartTitle ();                // start up intro loop
 
     }
+
+#if defined(PSP) || defined(__PSP__)
+    pspDebugScreenSetTextColor(0xFF00FF00); // Bright Green
+    pspDebugScreenPrintf("\n [OK] Engine ready! Launching DOOM...\n");
+    pspDebugScreenSetTextColor(0xFFFFFFFF);
+    sceKernelDelayThread(800000); // 0.8s pause to view green checkmarks
+#endif
 
     D_DoomLoop ();  // never returns
 }

@@ -89,7 +89,7 @@ ASFLAGS = $(CFLAGS)
 
 LIBDIR =
 LDFLAGS =
-LIBS = -lpspgu -lpspaudio -lpspctrl -lpspge -lpspdisplay -lpsprtc -lpsppower -lm
+LIBS = -lpspgu -lpspaudio -lpspctrl -lpspge -lpspdisplay -lpsprtc -lpsppower -lpspdebug -lm
 
 # Build PRX and Package as EBOOT.PBP
 BUILD_PRX = 1

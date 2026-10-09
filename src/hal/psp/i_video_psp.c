@@ -116,15 +116,13 @@ void I_InitGraphics(void)
     sceDisplaySetFrameBuf(vram_display[0], PSP_BUF_STRIDE, PSP_DISPLAY_PIXEL_FORMAT_8888, PSP_DISPLAY_SETBUF_IMMEDIATE);
     current_buffer = 0;
 
-    // Allocate DOOM refresh screens if not already provided by V_Init
+    // Ensure DOOM refresh screens are allocated
     if (!screens[0]) screens[0] = (byte*)malloc(SCREENWIDTH * SCREENHEIGHT);
     if (!screens[4]) screens[4] = (byte*)malloc(SCREENWIDTH * SCREENHEIGHT);
     if (!screens[0] || !screens[4])
     {
         I_Error("I_InitGraphics: Failed to allocate DOOM frame buffers");
     }
-    memset(screens[0], 0, SCREENWIDTH * SCREENHEIGHT);
-    memset(screens[4], 0, SCREENWIDTH * SCREENHEIGHT);
 
     // Initialize controller sampling with analog nub enabled
     sceCtrlSetSamplingCycle(0);
@@ -136,8 +134,7 @@ void I_InitGraphics(void)
 
 void I_ShutdownGraphics(void)
 {
-    if (screens[0]) { free(screens[0]); screens[0] = NULL; }
-    if (screens[4]) { free(screens[4]); screens[4] = NULL; }
+    // screens[0..4] are allocated globally in V_Init() and should not be freed as interior pointers
 }
 
 void I_SetPalette(byte* palette)
