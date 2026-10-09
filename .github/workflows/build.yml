@@ -221,9 +221,18 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      - name: Log in to GitHub Container Registry
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin || true
+
       - name: Build PSP EBOOT.PBP
         run: |
-          docker run --rm -v "${{ github.workspace }}:/src" -w /src pspdev/pspdev:latest make -f Makefile.psp
+          IMAGE="ghcr.io/pspdev/pspdev:latest"
+          if ! docker pull "$IMAGE"; then
+            echo "GHCR pull failed, attempting Docker Hub..."
+            IMAGE="pspdev/pspdev:latest"
+          fi
+          docker run --rm -v "${{ github.workspace }}:/src" -w /src "$IMAGE" make -f Makefile.psp
           sudo chown -R $USER:$USER .
 
       - name: Package PSP Release ZIP
