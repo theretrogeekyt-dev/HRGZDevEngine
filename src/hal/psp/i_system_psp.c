@@ -23,6 +23,7 @@
 #include "i_sound.h"
 #include "i_gamepad.h"
 #include "m_argv.h"
+#include "d_main.h"
 
 static u64 psp_start_ticks = 0;
 static u32 psp_tick_res = 0;
