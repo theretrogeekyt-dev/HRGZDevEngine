@@ -32,7 +32,15 @@ The original 1997 Linux release was riddled with 32-bit pointer assumptions, una
   - **Digital Sound Effects**: 16-bit 11025 Hz software multichannel mixer streamed via WinMM `waveOut`.
   - **General MIDI Music**: Real-time DOOM MUS-to-MIDI parser and sequencer driving the built-in Microsoft GS Wavetable Synth (`midiOut`).
 
-### 4. Automated Headless Test Harness (`src/hal/test/`)
+### 4. PlayStation Portable (PSP) Driver (`src/hal/psp/`)
+- **Official PSPDEV SDK**: Built using the modern community-maintained toolchain ([pspdev.github.io](https://pspdev.github.io)).
+- **Native 480x272 Widescreen**: High-speed double-buffered blitting to uncached eDRAM VRAM with 16:9 full screen and 426x200 pixel-perfect aspect options.
+- **Hardware Overclocking**: Automatically unlocks the Allegrex CPU to its maximum 333 MHz performance mode for locked 60 FPS gameplay.
+- **Multichannel Audio Thread**: Dedicated asynchronous kernel audio thread streaming 16-bit 44.1 kHz stereo sound effects and MUS2MIDI music via `libpspaudio`.
+- **Integrated PSP Controls**: Full analog nub movement, directional controls, and face/shoulder button mapping integrated with the playsim.
+- **Authentic EBOOT.PBP**: Packaged with high-resolution 144x80 XMB icon (`ICON0.PNG`) for 1-click execution on PSP hardware, PS Vita (Adrenaline), and PPSSPP.
+
+### 5. Automated Headless Test Harness (`src/hal/test/`)
 - Deterministic headless playsim runner for automated CI/CD and regression testing.
 - Renders genuine DOOM BSP scenes into uncompressed RGB PPM frames (`test_frame35.ppm`, `test_frame100.ppm`).
 
@@ -45,6 +53,7 @@ HRGZDevEngine/
 ├── .github/
 │   └── workflows/
 │       └── build.yml      # GitHub Actions CI/CD multi-platform build & release pipeline
+├── Makefile.psp           # Official PSPDEV build system for generating EBOOT.PBP
 ├── src/
 │   ├── doom/              # Core DOOM playsim, software renderer, and game logic
 │   │   ├── doomdef.h      # Engine constants, types, and global structures
@@ -68,6 +77,13 @@ HRGZDevEngine/
 │       │   ├── i_system_win.c
 │       │   ├── i_sound_win.c
 │       │   └── ...
+│       ├── psp/           # Sony PlayStation Portable driver (eDRAM VRAM, libpspaudio, libpspctrl, 333MHz)
+│       │   ├── i_main_psp.c
+│       │   ├── i_video_psp.c
+│       │   ├── i_sound_psp.c
+│       │   ├── i_system_psp.c
+│       │   ├── ICON0.PNG
+│       │   └── README_PSP.md
 │       ├── sdl/           # Cross-platform SDL2 driver (macOS, Linux, Windows)
 │       └── test/          # Headless automated verification test harness
 └── doom1.wad              # DOOM Shareware IWAD (v1.10) for testing
@@ -90,6 +106,7 @@ HRGZDevEngine DOOM utilizes a unified **GitHub Actions CI/CD Pipeline** ([`.gith
 | **macOS Native** | `macos-latest` | `HRGZDevEngine-DOOM-macOS.zip` | Compiles native Metal + Cocoa + GameController + AudioToolbox binary and packages complete `DOOM.app` bundle |
 | **Windows Native** | `windows-latest` | `HRGZDevEngine-DOOM-Windows.zip` | Compiles native `doom.exe` via MinGW-w64 with Win32, OpenGL hardware acceleration, XInput + DirectInput controllers, WinMM audio, and Winsock2 |
 | **Linux & Test Suite** | `ubuntu-latest` | `HRGZDevEngine-DOOM-Linux-SDL2.zip`<br>`Verification-Screenshots.zip` | Runs headless E1M1 playsim (150 frames), player movement (120 frames), and menu tests; compiles Linux `doom_sdl` binary |
+| **PlayStation Portable** | `pspdev/pspdev:latest` | `HRGZDevEngine-DOOM-PSP.zip` | Compiles MIPS allegrex binary and packages official `EBOOT.PBP` with `ICON0.PNG` for PSP, PS Vita, and PPSSPP |
 | **Release Publisher** | `ubuntu-latest` | GitHub Release Assets | Automatically attaches all platform zip archives and formatted changelog |
 
 ---
@@ -152,7 +169,16 @@ gcc -O2 -std=c99 \
 ./build/linux/doom_sdl -iwad doom1.wad
 ```
 
-### 4. Automated Headless Test Suite (Any OS)
+### 4. PlayStation Portable (PSP — Official PSPDEV SDK)
+```bash
+# Build EBOOT.PBP inside official PSPDEV container:
+docker run --rm -v "$(pwd):/src" -w /src pspdev/pspdev:latest make -f Makefile.psp
+
+# Deploy to PSP Memory Stick:
+# Copy the resulting EBOOT.PBP and your doom1.wad to ms0:/PSP/GAME/HRGZDOOM/
+```
+
+### 5. Automated Headless Test Suite (Any OS)
 ```bash
 mkdir -p build/test
 gcc -O2 -std=c99 \

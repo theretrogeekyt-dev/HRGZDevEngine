@@ -212,11 +212,43 @@ jobs:
           path: build/test_results/
 
   #--------------------------------------------------------------------------
-  # 4. Automated GitHub Release Packaging & Changelog
+  # 4. Sony PlayStation Portable (PSP) Build (PSPDEV SDK Docker)
+  #--------------------------------------------------------------------------
+  build-psp:
+    name: PlayStation Portable (PSP EBOOT.PBP)
+    runs-on: ubuntu-latest
+    container:
+      image: pspdev/pspdev:latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Build PSP EBOOT.PBP
+        run: |
+          make -f Makefile.psp
+
+      - name: Package PSP Release ZIP
+        run: |
+          mkdir -p build/psp/HRGZDOOM
+          cp EBOOT.PBP build/psp/HRGZDOOM/
+          if [ -f "doom1.wad" ]; then
+            cp "doom1.wad" build/psp/HRGZDOOM/
+          fi
+          cd build/psp
+          zip -r -y -X ../../HRGZDevEngine-DOOM-PSP.zip HRGZDOOM
+
+      - name: Upload PSP Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: HRGZDevEngine-DOOM-PSP
+          path: HRGZDevEngine-DOOM-PSP.zip
+
+  #--------------------------------------------------------------------------
+  # 5. Automated GitHub Release Packaging & Changelog
   #--------------------------------------------------------------------------
   release:
     name: Publish GitHub Release
-    needs: [build-macos, build-windows, test-and-verify]
+    needs: [build-macos, build-windows, test-and-verify, build-psp]
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
@@ -242,6 +274,11 @@ jobs:
         with:
           name: HRGZDevEngine-DOOM-Linux-SDL2
 
+      - name: Download PSP Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: HRGZDevEngine-DOOM-PSP
+
       - name: Generate Release Notes & Changelog
         run: |
           # Generate unique version starting with prefix 0.0.1
@@ -266,6 +303,7 @@ jobs:
           | 🍏 **macOS** | [`HRGZDevEngine-DOOM-macOS.zip`](https://github.com/${{ github.repository }}/releases/download/latest/HRGZDevEngine-DOOM-macOS.zip) | Metal HW Accel + Cocoa + AudioToolbox |
           | 🪟 **Windows** | [`HRGZDevEngine-DOOM-Windows.zip`](https://github.com/${{ github.repository }}/releases/download/latest/HRGZDevEngine-DOOM-Windows.zip) | Win32 + OpenGL HW Accel + WinMM + Winsock2 |
           | 🐧 **Linux** | [`HRGZDevEngine-DOOM-Linux-SDL2.zip`](https://github.com/${{ github.repository }}/releases/download/latest/HRGZDevEngine-DOOM-Linux-SDL2.zip) | SDL2 Driver + Software Audio Mixer |
+          | 🎮 **PlayStation Portable** | [`HRGZDevEngine-DOOM-PSP.zip`](https://github.com/${{ github.repository }}/releases/download/latest/HRGZDevEngine-DOOM-PSP.zip) | PSP eDRAM VRAM + 480x272 16:9 + libpspaudio |
 
           ---
 
@@ -302,6 +340,7 @@ jobs:
             HRGZDevEngine-DOOM-macOS.zip
             HRGZDevEngine-DOOM-Windows.zip
             HRGZDevEngine-DOOM-Linux-SDL2.zip
+            HRGZDevEngine-DOOM-PSP.zip
           draft: false
           prerelease: false
           make_latest: true
