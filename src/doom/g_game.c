@@ -252,6 +252,10 @@ void G_BuildTiccmd (ticcmd_t* cmd)
     cmd->consistancy = 
 	consistancy[consoleplayer][maketic%BACKUPTICS]; 
 
+    if (menuactive)
+    {
+        memset (mousearray, 0, sizeof(mousearray));
+    }
  
     strafe = gamekeydown[key_strafe] || mousebuttons[mousebstrafe] 
 	|| joybuttons[joybstrafe]; 

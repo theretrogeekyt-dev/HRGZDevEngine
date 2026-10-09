@@ -266,6 +266,12 @@ static LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPara
                 ReleaseCapture();
                 ShowCursor(TRUE);
                 mouse_captured = false;
+                event_t ev_rel;
+                ev_rel.type = ev_mouse;
+                ev_rel.data1 = 0;
+                ev_rel.data2 = 0;
+                ev_rel.data3 = 0;
+                D_PostEvent(&ev_rel);
             }
             return 0;
 
@@ -714,6 +720,7 @@ void I_StartTic(void)
     }
 
     // Relative mouse motion
+    static int last_win_buttons = 0;
     if (mouse_captured && window_active && !M_CheckParm("-nomouse"))
     {
         RECT rect;
@@ -727,20 +734,34 @@ void I_StartTic(void)
         int dx = cur.x - center_x;
         int dy = cur.y - center_y;
 
-        if (dx != 0 || dy != 0)
+        int cur_buttons = 0;
+        if (GetKeyState(VK_LBUTTON) & 0x8000) cur_buttons |= 1;
+        if (GetKeyState(VK_RBUTTON) & 0x8000) cur_buttons |= 2;
+        if (GetKeyState(VK_MBUTTON) & 0x8000) cur_buttons |= 4;
+
+        if (dx != 0 || dy != 0 || cur_buttons != last_win_buttons)
         {
-            SetCursorPos(center_x, center_y);
+            if (dx != 0 || dy != 0)
+                SetCursorPos(center_x, center_y);
 
             event_t ev;
             ev.type = ev_mouse;
-            ev.data1 = 0;
-            if (GetKeyState(VK_LBUTTON) & 0x8000) ev.data1 |= 1;
-            if (GetKeyState(VK_RBUTTON) & 0x8000) ev.data1 |= 2;
-            if (GetKeyState(VK_MBUTTON) & 0x8000) ev.data1 |= 4;
+            ev.data1 = cur_buttons;
             ev.data2 = dx * 8;
             ev.data3 = -dy * 8;
             D_PostEvent(&ev);
+            last_win_buttons = cur_buttons;
         }
+    }
+    else if (last_win_buttons != 0)
+    {
+        event_t ev;
+        ev.type = ev_mouse;
+        ev.data1 = 0;
+        ev.data2 = 0;
+        ev.data3 = 0;
+        D_PostEvent(&ev);
+        last_win_buttons = 0;
     }
 
     Win32_PollGamepad();

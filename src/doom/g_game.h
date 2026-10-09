@@ -70,6 +70,7 @@ boolean G_Responder (event_t*	ev);
 
 void G_ScreenShot (void);
 
+extern boolean mousearray[4];
 
 #endif
 //-----------------------------------------------------------------------------

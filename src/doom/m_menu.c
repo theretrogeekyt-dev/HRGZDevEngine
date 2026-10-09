@@ -2026,8 +2026,14 @@ static int menu_fs_choice = 0;
 
 void M_Display(int choice)
 {
+    (void)choice;
     menu_res_choice = current_resolution_index;
     menu_fs_choice = display_fullscreen ? 1 : 0;
+    int box_x_offset = 104;
+    int box_w = 20 * 8;
+    int total_row_w = box_x_offset + box_w + 8;
+    DisplayDef.x = (SCREENWIDTH - total_row_w) / 2;
+    DisplayDef.y = 48;
     M_SetupNextMenu(&DisplayDef);
 }
 
@@ -2067,39 +2073,52 @@ void M_DrawDisplay(void)
     if (W_CheckNumForName("M_DISOPT") >= 0)
     {
         int title_x = (SCREENWIDTH - 212) / 2;
-        V_DrawPatchDirect(title_x, 16, 0, W_CacheLumpName("M_DISOPT", PU_CACHE));
+        V_DrawPatchDirect(title_x, 14, 0, W_CacheLumpName("M_DISOPT", PU_CACHE));
     }
     else
     {
-        strcpy(buf, "DISPLAY OPTIONS");
-        vw = M_StringWidth(buf);
-        M_WriteText((SCREENWIDTH - vw) / 2, 16, buf);
+        char* title = "DISPLAY OPTIONS";
+        int title_w = M_MenuStringWidth(title);
+        M_DrawMenuText((SCREENWIDTH - title_w) / 2, 14, title);
     }
+
+    // Centered interactive rows:
+    // Visual span: label (row_x) to right cap of selector box (box_x + box_w + 8)
+    int box_x_offset = 104;
+    int box_chunks = 20;
+    int box_w = box_chunks * 8;
+    int total_row_w = box_x_offset + box_w + 8;
+    int row_x = (SCREENWIDTH - total_row_w) / 2;
+    int box_x = row_x + box_x_offset;
+    DisplayDef.x = row_x;
 
     // Row 0: Resolution
     y = DisplayDef.y + disp_res_idx * LINEHEIGHT;
-    M_WriteText(DisplayDef.x, y, "RESOLUTION:");
-    M_DrawBox(DisplayDef.x + 112, y, 19);
+    M_WriteText(row_x, y, "RESOLUTION:");
+    M_DrawBox(box_x, y, box_chunks);
     sprintf(buf, "<< %s >>", display_resolutions[menu_res_choice].name);
     vw = M_StringWidth(buf);
-    M_WriteText(DisplayDef.x + 112 + (152 - vw) / 2, y, buf);
+    M_WriteText(box_x + (box_w - vw) / 2, y, buf);
 
     // Row 2: Display Mode
     y = DisplayDef.y + disp_mode_idx * LINEHEIGHT;
-    M_WriteText(DisplayDef.x, y, "DISPLAY MODE:");
-    M_DrawBox(DisplayDef.x + 112, y, 19);
+    M_WriteText(row_x, y, "DISPLAY MODE:");
+    M_DrawBox(box_x, y, box_chunks);
     sprintf(buf, "<< %s >>", menu_fs_choice ? "FULLSCREEN" : "WINDOWED");
     vw = M_StringWidth(buf);
-    M_WriteText(DisplayDef.x + 112 + (152 - vw) / 2, y, buf);
+    M_WriteText(box_x + (box_w - vw) / 2, y, buf);
 
-    // Row 4: Apply Button
+    // Row 4: Apply Button (Centered on screen)
     y = DisplayDef.y + disp_apply_idx * LINEHEIGHT;
-    M_DrawBox(DisplayDef.x + 36, y, 24);
+    int apply_chunks = 22;
+    int apply_w = apply_chunks * 8;
+    int apply_x = (SCREENWIDTH - apply_w) / 2;
+    M_DrawBox(apply_x, y, apply_chunks);
     strcpy(buf, ">> APPLY RESOLUTION <<");
     vw = M_StringWidth(buf);
-    M_WriteText(DisplayDef.x + 36 + (192 - vw) / 2, y, buf);
+    M_WriteText(apply_x + (apply_w - vw) / 2, y, buf);
 
-    // Bottom Hints
+    // Bottom Hints (Centered horizontally)
     strcpy(buf, "USE ARROWS TO CHANGE SETTINGS");
     vw = M_StringWidth(buf);
     M_WriteText((SCREENWIDTH - vw) / 2, 138, buf);
@@ -3127,6 +3146,7 @@ void M_StartControlPanel (void)
     menuactive = 1;
     currentMenu = &MainDef;         // JDC
     itemOn = currentMenu->lastOn;   // JDC
+    memset(mousearray, 0, sizeof(mousearray));
 }
 
 
@@ -3234,7 +3254,26 @@ void M_Drawer (void)
 
     
     // DRAW SKULL
-    V_DrawPatchDirect(x + SKULLXOFF,currentMenu->y - 5 + itemOn*LINEHEIGHT, 0,
+    int skull_x = x + SKULLXOFF;
+    if (currentMenu == &DisplayDef)
+    {
+        if (itemOn == disp_apply_idx)
+        {
+            int apply_chunks = 22;
+            int apply_w = apply_chunks * 8;
+            int apply_x = (SCREENWIDTH - apply_w) / 2;
+            skull_x = apply_x - 42;
+        }
+        else
+        {
+            int box_x_offset = 104;
+            int box_w = 20 * 8;
+            int total_row_w = box_x_offset + box_w + 8;
+            int row_x = (SCREENWIDTH - total_row_w) / 2;
+            skull_x = row_x - 28;
+        }
+    }
+    V_DrawPatchDirect(skull_x, currentMenu->y - 5 + itemOn*LINEHEIGHT, 0,
 		      W_CacheLumpName(skullName[whichSkull],PU_CACHE));
 
 }
@@ -3246,6 +3285,7 @@ void M_Drawer (void)
 void M_ClearMenus (void)
 {
     menuactive = 0;
+    memset(mousearray, 0, sizeof(mousearray));
     // if (!netgame && usergame && paused)
     //       sendpause = true;
 }
@@ -3323,7 +3363,6 @@ void M_Init (void)
         EpiDef.x += mx;
         OptionsDef.x += mx;
         SoundDef.x += mx;
-        DisplayDef.x += mx;
         LoadDef.x += mx;
         SaveDef.x += mx;
         ReadDef1.x += mx;

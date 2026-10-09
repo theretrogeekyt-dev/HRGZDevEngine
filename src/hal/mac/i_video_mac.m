@@ -383,24 +383,72 @@ static boolean InitMetalPipeline(void)
         mouse_captured = true;
     }
     mouse_buttons |= 1;
+    event_t ev;
+    ev.type = ev_mouse;
+    ev.data1 = mouse_buttons;
+    ev.data2 = 0;
+    ev.data3 = 0;
+    D_PostEvent(&ev);
 }
 
 - (void)mouseUp:(NSEvent *)event
 {
     (void)event;
     mouse_buttons &= ~1;
+    event_t ev;
+    ev.type = ev_mouse;
+    ev.data1 = mouse_buttons;
+    ev.data2 = 0;
+    ev.data3 = 0;
+    D_PostEvent(&ev);
 }
 
 - (void)rightMouseDown:(NSEvent *)event
 {
     (void)event;
     mouse_buttons |= 2;
+    event_t ev;
+    ev.type = ev_mouse;
+    ev.data1 = mouse_buttons;
+    ev.data2 = 0;
+    ev.data3 = 0;
+    D_PostEvent(&ev);
 }
 
 - (void)rightMouseUp:(NSEvent *)event
 {
     (void)event;
     mouse_buttons &= ~2;
+    event_t ev;
+    ev.type = ev_mouse;
+    ev.data1 = mouse_buttons;
+    ev.data2 = 0;
+    ev.data3 = 0;
+    D_PostEvent(&ev);
+}
+
+- (void)otherMouseDown:(NSEvent *)event
+{
+    (void)event;
+    mouse_buttons |= 4;
+    event_t ev;
+    ev.type = ev_mouse;
+    ev.data1 = mouse_buttons;
+    ev.data2 = 0;
+    ev.data3 = 0;
+    D_PostEvent(&ev);
+}
+
+- (void)otherMouseUp:(NSEvent *)event
+{
+    (void)event;
+    mouse_buttons &= ~4;
+    event_t ev;
+    ev.type = ev_mouse;
+    ev.data1 = mouse_buttons;
+    ev.data2 = 0;
+    ev.data3 = 0;
+    D_PostEvent(&ev);
 }
 
 - (void)mouseMoved:(NSEvent *)event
@@ -418,6 +466,11 @@ static boolean InitMetalPipeline(void)
 }
 
 - (void)rightMouseDragged:(NSEvent *)event
+{
+    [self mouseMoved:event];
+}
+
+- (void)otherMouseDragged:(NSEvent *)event
 {
     [self mouseMoved:event];
 }
@@ -442,6 +495,16 @@ static boolean InitMetalPipeline(void)
         CGAssociateMouseAndMouseCursorPosition(true);
         [NSCursor unhide];
         mouse_captured = false;
+    }
+    if (mouse_buttons != 0)
+    {
+        mouse_buttons = 0;
+        event_t ev;
+        ev.type = ev_mouse;
+        ev.data1 = 0;
+        ev.data2 = 0;
+        ev.data3 = 0;
+        D_PostEvent(&ev);
     }
 }
 - (void)windowDidEnterFullScreen:(NSNotification *)notification
@@ -805,9 +868,10 @@ void I_StartTic(void)
     }
 
     // Post mouse movement and button states
+    static int last_posted_buttons = 0;
     if (mouse_captured && !M_CheckParm("-nomouse"))
     {
-        if (accum_mouse_dx != 0 || accum_mouse_dy != 0 || mouse_buttons != 0)
+        if (accum_mouse_dx != 0 || accum_mouse_dy != 0 || mouse_buttons != last_posted_buttons)
         {
             event_t ev;
             ev.type = ev_mouse;
@@ -817,7 +881,19 @@ void I_StartTic(void)
             D_PostEvent(&ev);
             accum_mouse_dx = 0;
             accum_mouse_dy = 0;
+            last_posted_buttons = mouse_buttons;
         }
+    }
+    else if (last_posted_buttons != 0)
+    {
+        mouse_buttons = 0;
+        event_t ev;
+        ev.type = ev_mouse;
+        ev.data1 = 0;
+        ev.data2 = 0;
+        ev.data3 = 0;
+        D_PostEvent(&ev);
+        last_posted_buttons = 0;
     }
 
     // Poll Apple GameController (DualShock 4, DualSense PS5, Xbox Series/One/Elite)

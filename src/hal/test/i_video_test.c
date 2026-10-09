@@ -132,6 +132,11 @@ void I_FinishUpdate(void)
         SavePPM("test_display_menu.ppm", screens[0], current_palette);
     }
 
+    if (M_CheckParm("-testdispmenu") && frame_count == 85)
+    {
+        SavePPM("test_display_menu_apply.ppm", screens[0], current_palette);
+    }
+
     if (M_CheckParm("-testoptions") && frame_count == 60)
     {
         SavePPM("test_options_menu.ppm", screens[0], current_palette);
@@ -205,16 +210,33 @@ void I_StartTic(void)
 
     if (M_CheckParm("-testdispmenu"))
     {
-        if (frame_count == 45)
+        static int last_disp_frame = -1;
+        if (frame_count == 45 && last_disp_frame != 45)
         {
+            last_disp_frame = 45;
             M_StartControlPanel();
             M_Display(0);
         }
-        else if (frame_count == 55)
+        else if (frame_count == 55 && last_disp_frame != 55)
         {
+            last_disp_frame = 55;
             event_t ev;
             ev.type = ev_keydown; ev.data1 = KEY_RIGHTARROW; D_PostEvent(&ev);
             ev.type = ev_keyup;   ev.data1 = KEY_RIGHTARROW; D_PostEvent(&ev);
+        }
+        else if (frame_count == 65 && last_disp_frame != 65)
+        {
+            last_disp_frame = 65;
+            event_t ev;
+            ev.type = ev_keydown; ev.data1 = KEY_DOWNARROW; D_PostEvent(&ev);
+            ev.type = ev_keyup;   ev.data1 = KEY_DOWNARROW; D_PostEvent(&ev);
+        }
+        else if (frame_count == 75 && last_disp_frame != 75)
+        {
+            last_disp_frame = 75;
+            event_t ev;
+            ev.type = ev_keydown; ev.data1 = KEY_DOWNARROW; D_PostEvent(&ev);
+            ev.type = ev_keyup;   ev.data1 = KEY_DOWNARROW; D_PostEvent(&ev);
         }
     }
 
