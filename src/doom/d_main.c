@@ -89,6 +89,7 @@ static const char rcsid[] = "$Id: d_main.c,v 1.8 1997/02/03 22:45:09 b1 Exp $";
 
 
 #include "d_main.h"
+#include "i_game_config.h"
 
 //
 // D-DoomLoop()
@@ -633,6 +634,22 @@ void IdentifyVersion (void)
             strcpy(basedefault, "default.cfg");
             return;
         }
+    }
+
+    // Auto-discover bundled standalone game pack (game.wad / project.wad / game.json)
+    const char* auto_game_wad = I_GetGameWadPath();
+    if (auto_game_wad && check_file_exists(auto_game_wad))
+    {
+        gamemode = commercial;
+        if (strstr(auto_game_wad, "doom1") || strstr(auto_game_wad, "DOOM1"))
+            gamemode = shareware;
+        else if (strstr(auto_game_wad, "doom.") || strstr(auto_game_wad, "DOOM."))
+            gamemode = registered;
+        else if (strstr(auto_game_wad, "doomu") || strstr(auto_game_wad, "DOOMU"))
+            gamemode = retail;
+        D_AddFile((char*)auto_game_wad);
+        strcpy(basedefault, "default.cfg");
+        return;
     }
 
 #if defined(PSP) || defined(__PSP__)

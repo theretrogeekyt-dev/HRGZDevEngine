@@ -28,6 +28,7 @@
 #include "v_video.h"
 #include "m_argv.h"
 #include "d_main.h"
+#include "i_game_config.h"
 
 #define DOOM_WINDOW_CLASS "HRGZDevEngine_DOOM"
 #define DEFAULT_SCALE     3
@@ -450,7 +451,7 @@ void I_InitGraphics(void)
     hwnd_main = CreateWindowExA(
         0,
         DOOM_WINDOW_CLASS,
-        "HRGZDevEngine DOOM (OpenGL)",
+        I_GetGameTitle(),
         style,
         pos_x, pos_y,
         final_w, final_h,

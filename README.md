@@ -2,7 +2,14 @@
 
 A high-performance, cross-platform DOOM source port engineered for **HRGZDevEngine**, based on the canonical id Software 1993/1997 source code ([id-software/DOOM](https://github.com/id-software/DOOM)).
 
-Designed from the ground up for **Modern Windows** (Win32 / Win64 with **zero external dependencies**), **macOS** (Apple Metal hardware acceleration & Cocoa), and modern POSIX systems via SDL2 and an automated headless verification test harness.
+Designed from the ground up for **Modern Windows** (Win32 / Win64 with **zero external dependencies**), **macOS** (Apple Metal hardware acceleration & Cocoa), **Linux** (SDL2), and **Sony PSP** (PSPDEV homebrew).
+
+### 🚀 All-in-One Game Creation & Distribution Studio
+HRGZDevEngine now includes **HRGZDevEngine Studio** — a visual desktop studio and compilation hub that lets creators design, compile, and distribute standalone retro games powered by the DOOM engine in one tool:
+- **Visual Desktop Studio GUI**: Run `./hrgz-studio` or `npm run studio` to launch the interactive dark-mode dashboard.
+- **Universal CLI (`bin/hrgz`)**: Command-line interface for terminal users, scripting, and CI/CD pipelines (`hrgz init`, `hrgz build`, `hrgz dist`, `hrgz run`).
+- **Bundled Game Packs**: Package custom WADs, DeHackEd patches, and metadata into standalone games that boot directly with isolated saves, custom window titles, and branding.
+- **Multi-Platform Publishing**: Export ready-to-publish release archives for **macOS (.app)**, **Windows (.exe)**, and **Linux** with `itch.toml` action files and Steam configs in one click.
 
 ---
 
@@ -259,6 +266,42 @@ HRGZDevEngine DOOM features native, zero-setup plug-and-play gamepad support wit
 | **Options / Pause** | Options Button | Menu / Start Button |
 | **Quick Weapon Slots** | D-Pad (Up: Shotgun, Down: Chaingun, Left: Rockets/Plasma, Right: BFG/Chainsaw) | D-Pad (Up: Shotgun, Down: Chaingun, Left: Rockets/Plasma, Right: BFG/Chainsaw) |
 | **Menu Navigation** | D-Pad / Left Stick (`✕` Confirm, `◯` Back) | D-Pad / Left Stick (`A` Confirm, `B` Back) |
+
+---
+
+## HRGZDevEngine Studio & Game Distribution Guide
+
+### 1. Launching the Visual Desktop Studio
+To start the visual game studio dashboard:
+```bash
+./hrgz-studio
+# Or using npm
+npm run studio
+```
+The studio dashboard will open automatically in your browser at `http://127.0.0.1:4820` with:
+- **Interactive Project Dashboard**: Overview of metadata, game slug, version, and quick publishing links.
+- **Visual Asset Pipeline**: Automatic WAD lump parser, verifying palette, textures, sound effects, and level lists.
+- **Real-Time Compiler Hub**: Live compiler logs streaming directly to the in-browser terminal console.
+- **One-Click Distribution**: Builds `.zip` releases with `itch.toml` action files and Steam configs.
+
+### 2. Using the Universal CLI (`bin/hrgz`)
+For automated scripting and CI/CD workflows:
+```bash
+# Scaffold a new standalone game project
+./bin/hrgz init "My Great Game"
+
+# Inspect any WAD file (lumps, maps, palettes, sprites)
+./bin/hrgz inspect path/to/game.wad
+
+# Compile standalone native game for macOS (.app bundle with bundled assets)
+./bin/hrgz build mac
+
+# Package release distribution ZIP for itch.io / Steam
+./bin/hrgz dist mac
+
+# Launch the game locally for instant gameplay testing
+./bin/hrgz run
+```
 
 ---
 

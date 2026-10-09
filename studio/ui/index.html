@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HRGZDevEngine Studio - Game Creator & Compiler</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Top Navigation Bar -->
+        <header class="app-header">
+            <div class="logo-group">
+                <div class="logo-badge">HRGZ</div>
+                <div class="title-wrap">
+                    <h1>HRGZDevEngine Studio</h1>
+                    <span class="subtitle">All-in-One DOOM Engine Game Distribution & Compilation System</span>
+                </div>
+            </div>
+
+            <div class="header-status">
+                <div class="badge-pill" id="systemBadge">
+                    <span class="dot"></span>
+                    <span id="systemText">Detecting Toolchain...</span>
+                </div>
+            </div>
+
+            <div class="header-actions">
+                <button class="btn btn-secondary" id="btnSaveProject">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                    Save Project
+                </button>
+                <button class="btn btn-primary" id="btnBuildProject">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
+                    Build Native Game
+                </button>
+                <button class="btn btn-success" id="btnRunGame">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                    Play / Test Game
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Workspace Grid -->
+        <div class="workspace">
+            <!-- Sidebar Navigation -->
+            <nav class="sidebar">
+                <div class="nav-section-title">PROJECT</div>
+                <button class="nav-btn active" data-tab="tab-dashboard">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                    Dashboard
+                </button>
+                <button class="nav-btn" data-tab="tab-identity">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                    Identity & Branding
+                </button>
+                <button class="nav-btn" data-tab="tab-assets">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path></svg>
+                    WAD Asset Pipeline
+                </button>
+                <button class="nav-btn" data-tab="tab-engine">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                    Engine Settings
+                </button>
+
+                <div class="nav-section-title">DISTRIBUTION</div>
+                <button class="nav-btn" data-tab="tab-build">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+                    Build & Compiler Hub
+                </button>
+                <button class="nav-btn" data-tab="tab-publish">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    Publishing & itch.io / Steam
+                </button>
+            </nav>
+
+            <!-- Main Content Area -->
+            <main class="main-content">
+                <!-- TAB 1: DASHBOARD -->
+                <section class="tab-pane active" id="tab-dashboard">
+                    <div class="pane-header">
+                        <h2>Game Project Overview</h2>
+                        <p class="pane-desc">Design, configure, and distribute your standalone retro game powered by HRGZDevEngine.</p>
+                    </div>
+
+                    <div class="grid-2col">
+                        <div class="card project-summary-card">
+                            <div class="card-header">
+                                <h3 id="displayGameTitle">Loading...</h3>
+                                <span class="badge" id="displayVersion">v1.0.0</span>
+                            </div>
+                            <p class="card-desc" id="displayDescription">Game description goes here.</p>
+                            <div class="meta-stats">
+                                <div class="stat-item">
+                                    <span class="stat-label">Game ID / Slug</span>
+                                    <span class="stat-value" id="displayId">--</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Developer</span>
+                                    <span class="stat-value" id="displayAuthor">--</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Bundled WAD</span>
+                                    <span class="stat-value" id="displayWad">--</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Engine Mode</span>
+                                    <span class="stat-value" id="displayMode">Shareware</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card quick-actions-card">
+                            <div class="card-header">
+                                <h3>Quick Publishing Center</h3>
+                            </div>
+                            <p class="card-desc">Export self-contained release distributions in one click for all PC platforms.</p>
+
+                            <div class="action-list">
+                                <div class="action-row">
+                                    <div>
+                                        <strong>macOS Native .app</strong>
+                                        <div class="text-muted">Metal / Cocoa self-contained bundle with bundled game assets</div>
+                                    </div>
+                                    <button class="btn btn-sm btn-primary" onclick="buildTarget('mac')">Compile</button>
+                                </div>
+                                <div class="action-row">
+                                    <div>
+                                        <strong>Release Zip Package</strong>
+                                        <div class="text-muted">Direct zip export with itch.toml manifest for game publishing</div>
+                                    </div>
+                                    <button class="btn btn-sm btn-secondary" onclick="distTarget('mac')">Package Zip</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TAB 2: IDENTITY & BRANDING -->
+                <section class="tab-pane" id="tab-identity">
+                    <div class="pane-header">
+                        <h2>Game Identity & Branding</h2>
+                        <p class="pane-desc">Configure window title, identifiers, and branding metadata for your standalone game.</p>
+                    </div>
+
+                    <div class="card">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="inputTitle">Game Title (Display Name)</label>
+                                <input type="text" id="inputTitle" placeholder="e.g. Cyber Assault: Protocol Zero">
+                                <span class="help-text">Visible in the window title bar, desktop launcher, and application menus.</span>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="inputId">Game Identifier (Slug ID)</label>
+                                <input type="text" id="inputId" placeholder="e.g. cyberassault">
+                                <span class="help-text">Used for isolated save game paths and bundle identifiers (lowercase alphanumeric).</span>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="inputVersion">Release Version</label>
+                                <input type="text" id="inputVersion" placeholder="1.0.0">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="inputAuthor">Developer / Studio Name</label>
+                                <input type="text" id="inputAuthor" placeholder="e.g. Pixel Forge Studios">
+                            </div>
+
+                            <div class="form-group span-2">
+                                <label for="inputDescription">Short Description</label>
+                                <textarea id="inputDescription" rows="3" placeholder="Brief elevator pitch for your retro shooter game..."></textarea>
+                            </div>
+
+                            <div class="form-group span-2">
+                                <label for="inputWebsite">Website / itch.io / Steam URL</label>
+                                <input type="text" id="inputWebsite" placeholder="https://yourstudio.itch.io/yourgame">
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TAB 3: WAD ASSET PIPELINE -->
+                <section class="tab-pane" id="tab-assets">
+                    <div class="pane-header">
+                        <h2>WAD Asset Pipeline & Inspector</h2>
+                        <p class="pane-desc">Inspect lump directories, verify game palette & textures, and bundle assets into standalone packs.</p>
+                    </div>
+
+                    <div class="card">
+                        <div class="form-group">
+                            <label for="inputWadPath">Primary Game WAD File</label>
+                            <div class="input-with-button">
+                                <input type="text" id="inputWadPath" value="doom1.wad">
+                                <button class="btn btn-secondary" id="btnInspectWad">Inspect WAD</button>
+                            </div>
+                            <span class="help-text">Relative path to your base IWAD (e.g. doom1.wad, freedoom1.wad, or custom game.wad).</span>
+                        </div>
+
+                        <div id="wadInspectionResult" class="wad-inspector-box">
+                            <div class="wad-status-banner" id="wadStatusBanner">Loading WAD analysis...</div>
+                            <div class="wad-metrics-grid">
+                                <div class="metric-card">
+                                    <div class="metric-val" id="metricLumps">--</div>
+                                    <div class="metric-lbl">Total Lumps</div>
+                                </div>
+                                <div class="metric-card">
+                                    <div class="metric-val" id="metricMaps">--</div>
+                                    <div class="metric-lbl">Maps / Levels</div>
+                                </div>
+                                <div class="metric-card">
+                                    <div class="metric-val" id="metricSprites">--</div>
+                                    <div class="metric-lbl">Sprites</div>
+                                </div>
+                                <div class="metric-card">
+                                    <div class="metric-val" id="metricAudio">--</div>
+                                    <div class="metric-lbl">SFX & Music</div>
+                                </div>
+                            </div>
+
+                            <div class="map-list-wrap">
+                                <h4>Detected Game Levels</h4>
+                                <div class="map-tags" id="mapTags"></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TAB 4: ENGINE SETTINGS -->
+                <section class="tab-pane" id="tab-engine">
+                    <div class="pane-header">
+                        <h2>Engine & Display Settings</h2>
+                        <p class="pane-desc">Calibrate default viewport resolution, widescreen behavior, and sound mixing options.</p>
+                    </div>
+
+                    <div class="card">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="selectResolution">Default Aspect Canvas</label>
+                                <select id="selectResolution">
+                                    <option value="426x200">426x200 (Widescreen 16:9 - Recommended)</option>
+                                    <option value="320x200">320x200 (Classic 4:3 Retro Canvas)</option>
+                                    <option value="640x400">640x400 (Hi-Res 2x Retro Canvas)</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="selectMode">Game Compatibility Rule</label>
+                                <select id="selectMode">
+                                    <option value="shareware">Shareware (DOOM 1 Episode 1 Rules)</option>
+                                    <option value="registered">Registered (DOOM 1 Complete Episodes)</option>
+                                    <option value="commercial">Commercial (DOOM 2 / 32 Maps / Super Shotgun)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TAB 5: BUILD & COMPILER HUB -->
+                <section class="tab-pane" id="tab-build">
+                    <div class="pane-header">
+                        <h2>Build & Compiler Hub</h2>
+                        <p class="pane-desc">Real-time compilation pipeline for native desktop executables.</p>
+                    </div>
+
+                    <div class="card">
+                        <div class="build-controls">
+                            <button class="btn btn-primary" onclick="buildTarget('mac')">Compile macOS Native (.app)</button>
+                            <button class="btn btn-secondary" onclick="clearConsole()">Clear Logs</button>
+                        </div>
+
+                        <div class="terminal-window">
+                            <div class="terminal-bar">
+                                <span class="term-dot dot-red"></span>
+                                <span class="term-dot dot-yellow"></span>
+                                <span class="term-dot dot-green"></span>
+                                <span class="term-title">Compilation Output Stream</span>
+                            </div>
+                            <pre class="terminal-body" id="termLogs">Ready to compile. Click 'Compile macOS Native' to start build.</pre>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TAB 6: PUBLISHING & PACKAGING -->
+                <section class="tab-pane" id="tab-publish">
+                    <div class="pane-header">
+                        <h2>Publishing & Release Packaging</h2>
+                        <p class="pane-desc">Generate release ZIPs for itch.io, Game Jolt, and Steam.</p>
+                    </div>
+
+                    <div class="card">
+                        <div class="dist-card-inner">
+                            <h3>One-Click Release Packaging</h3>
+                            <p class="card-desc">Zips your compiled game with bundled assets, licenses, and an itch.io <code>itch.toml</code> action manifest.</p>
+                            <button class="btn btn-success" onclick="distTarget('mac')">Create macOS Release (.zip)</button>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,147 @@
+#!/usr/bin/env node
+
+/**
+ * HRGZDevEngine CLI - Universal Game Creation & Distribution Tool
+ */
+
+const fs = require('fs');
+const path = require('path');
+const { spawn, execSync } = require('child_process');
+const { parseWad } = require('../studio/wad_parser');
+const { buildMac, packageRelease, detectSystem } = require('../studio/builder');
+
+const REPO_ROOT = path.resolve(__dirname, '..');
+const PROJECT_FILE = path.join(REPO_ROOT, 'game.json');
+
+const args = process.argv.slice(2);
+const command = args[0] || 'help';
+
+function loadProject() {
+    if (fs.existsSync(PROJECT_FILE)) {
+        return JSON.parse(fs.readFileSync(PROJECT_FILE, 'utf8'));
+    }
+    return {
+        title: 'Cyber Assault',
+        id: 'cyberassault',
+        version: '1.0.0',
+        author: 'Indie Studio',
+        wadPath: 'doom1.wad',
+        gameMode: 'shareware'
+    };
+}
+
+const log = (msg) => process.stdout.write(msg);
+
+async function main() {
+    switch (command) {
+        case 'studio':
+        case 'gui': {
+            console.log('Launching HRGZDevEngine Studio GUI...');
+            require('../studio/server');
+            break;
+        }
+
+        case 'init': {
+            const name = args[1] || 'My Retro Game';
+            const id = name.toLowerCase().replace(/[^a-z0-9_-]/g, '');
+            const proj = {
+                title: name,
+                id: id,
+                version: '1.0.0',
+                author: 'Game Creator',
+                description: 'A custom standalone game created with HRGZDevEngine.',
+                website: 'https://itch.io',
+                wadPath: 'doom1.wad',
+                gameMode: 'shareware',
+                defaultResolution: '426x200',
+                scalingMode: 'widescreen_16_9'
+            };
+            fs.writeFileSync(PROJECT_FILE, JSON.stringify(proj, null, 2));
+            console.log(`Initialized new game project '${name}' in game.json`);
+            break;
+        }
+
+        case 'inspect': {
+            const wad = args[1] || 'doom1.wad';
+            const wadPath = path.resolve(REPO_ROOT, wad);
+            console.log(`Inspecting DOOM WAD: ${wadPath}`);
+            const data = parseWad(wadPath);
+            console.log(`Type:       ${data.type}`);
+            console.log(`Size:       ${data.fileSizeFormatted}`);
+            console.log(`Lumps:      ${data.numLumps}`);
+            console.log(`Maps (${data.stats.mapCount}): ${data.stats.maps.join(', ')}`);
+            console.log(`Sprites:    ${data.stats.spriteCount}`);
+            console.log(`Status:     ${data.validation.statusMessage}`);
+            break;
+        }
+
+        case 'build': {
+            const target = args[1] || 'mac';
+            const project = loadProject();
+            console.log(`Building project '${project.title}' for target: ${target}`);
+            if (target === 'mac') {
+                const app = await buildMac(project, log);
+                console.log(`\nBuild Complete: ${app}`);
+            } else {
+                console.error(`Target '${target}' is not yet supported on this host.`);
+                process.exit(1);
+            }
+            break;
+        }
+
+        case 'dist':
+        case 'package': {
+            const target = args[1] || 'mac';
+            const project = loadProject();
+            console.log(`Packaging release distribution for '${project.title}' (${target})`);
+            const zip = await packageRelease(project, target, log);
+            console.log(`\nDistribution Ready: ${zip}`);
+            break;
+        }
+
+        case 'run':
+        case 'play': {
+            const project = loadProject();
+            const binary = path.join(REPO_ROOT, 'build', 'projects', project.id, 'mac', `${project.title}.app`, 'Contents', 'MacOS', project.id);
+            if (!fs.existsSync(binary)) {
+                console.log(`Game binary not found. Building '${project.title}' first...`);
+                await buildMac(project, log);
+            }
+            console.log(`Launching ${binary}...`);
+            const proc = spawn(binary, [], { cwd: path.dirname(binary), stdio: 'inherit' });
+            proc.on('exit', (code) => {
+                console.log(`Game exited with code ${code}`);
+            });
+            break;
+        }
+
+        case 'system': {
+            const sys = detectSystem();
+            console.log('Host System & Compilers:');
+            console.log(JSON.stringify(sys, null, 2));
+            break;
+        }
+
+        case 'help':
+        default: {
+            console.log(`
+HRGZDevEngine - DOOM Engine Game Creation & Distribution CLI
+
+Usage:
+  hrgz studio            Launch the interactive Desktop Studio GUI
+  hrgz init [name]       Scaffold a new game project
+  hrgz inspect [wad]     Inspect WAD lumps, textures, maps and validate assets
+  hrgz build [target]    Compile standalone native game (target: mac)
+  hrgz dist [target]     Package release ZIP with itch.toml manifest
+  hrgz run               Compile and launch the game locally for testing
+  hrgz system            Show host compilers and toolchains
+`);
+            break;
+        }
+    }
+}
+
+main().catch(err => {
+    console.error(`[ERROR] ${err.message}`);
+    process.exit(1);
+});

@@ -31,6 +31,7 @@
 #include "v_video.h"
 #include "m_argv.h"
 #include "d_main.h"
+#include "i_game_config.h"
 
 #define DEFAULT_SCALE 3
 
@@ -641,7 +642,8 @@ void I_InitGraphics(void)
                     backing:NSBackingStoreBuffered
                       defer:NO];
 
-    [doom_window setTitle:@"HRGZDevEngine DOOM (Apple Metal)"];
+    NSString* titleStr = [NSString stringWithUTF8String:I_GetGameTitle()];
+    [doom_window setTitle:titleStr];
     [doom_window setAcceptsMouseMovedEvents:YES];
     [doom_window setCollectionBehavior:NSWindowCollectionBehaviorFullScreenPrimary];
 

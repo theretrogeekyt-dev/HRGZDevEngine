@@ -1,7 +1,9 @@
 # Build directories and outputs
 build/
 build_cmake/
-/bin/
+dist/
+/bin/*
+!/bin/hrgz
 obj/
 *.o
 *.obj

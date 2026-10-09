@@ -21,6 +21,7 @@
 #include "m_argv.h"
 #include "d_main.h"
 #include "i_gamepad.h"
+#include "i_game_config.h"
 
 static SDL_Window*         sdl_window = NULL;
 static SDL_Renderer*       sdl_renderer = NULL;
@@ -137,7 +138,7 @@ void I_InitGraphics(void)
         flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
 
     sdl_window = SDL_CreateWindow(
-        "HRGZDevEngine DOOM (SDL2)",
+        I_GetGameTitle(),
         SDL_WINDOWPOS_CENTERED,
         SDL_WINDOWPOS_CENTERED,
         win_w, win_h,

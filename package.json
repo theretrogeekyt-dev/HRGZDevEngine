@@ -1,0 +1,26 @@
+{
+  "name": "hrgzdevengine",
+  "version": "1.0.0",
+  "description": "All-in-One Game Creation, Compilation & Distribution System based on DOOM",
+  "bin": {
+    "hrgz": "./bin/hrgz"
+  },
+  "scripts": {
+    "studio": "node studio/server.js",
+    "init": "node bin/hrgz init",
+    "inspect": "node bin/hrgz inspect",
+    "build": "node bin/hrgz build",
+    "dist": "node bin/hrgz dist",
+    "run": "node bin/hrgz run",
+    "test": "./build/test/doom_test -iwad doom1.wad -warp 1 1 -testframes 50"
+  },
+  "keywords": [
+    "doom",
+    "game-engine",
+    "game-distribution",
+    "game-studio",
+    "retro-fps"
+  ],
+  "author": "HRGZDevEngine Team",
+  "license": "GPL-2.0"
+}
