@@ -247,21 +247,27 @@ jobs:
             -Wno-error=incompatible-pointer-types \
             -Wno-error=int-conversion \
             -Wno-implicit-function-declaration \
-            -std=c99 -DLIBXENON -D__BIG_ENDIAN__ -D_GNU_SOURCE -D_DEFAULT_SOURCE \
+            -std=c99 -DLIBXENON -D_GNU_SOURCE -D_DEFAULT_SOURCE \
             src/doom/*.c src/hal/common/*.c src/hal/xenon/*.c \
             -Isrc/doom -Isrc/hal/common -Isrc/hal/xenon/include \
-            -lm -s -o build/xenon/xenon.elf 2>&1 | tee /tmp/xenon_build.log || {
-              echo "### ❌ PowerPC Cross-Compilation Output" >> $GITHUB_STEP_SUMMARY
-              echo '```' >> $GITHUB_STEP_SUMMARY
-              cat /tmp/xenon_build.log >> $GITHUB_STEP_SUMMARY
-              echo '```' >> $GITHUB_STEP_SUMMARY
-              exit 1
-            }
+            -lm -s -o build/xenon/xenon.elf > build/xenon/compile.log 2>&1 || true
+
+          cat build/xenon/compile.log
+          cp build/xenon/compile.log build/xenon/build_log.txt
+
+          if [ ! -f build/xenon/xenon.elf ]; then
+            echo "::error::xenon.elf was not created!"
+            tail -n 100 build/xenon/compile.log
+            exit 1
+          fi
 
           file build/xenon/xenon.elf
 
       - name: Package Xbox 360 Release Zip
         run: |
+          test -f build/xenon/xenon.elf || { echo "ERROR: xenon.elf not found"; exit 1; }
+          test -f src/hal/xenon/default.xex || { echo "ERROR: default.xex not found"; exit 1; }
+
           cp src/hal/xenon/default.xex build/xenon/default.xex
           cp src/hal/xenon/README_XBOX360.txt build/xenon/README_XBOX360.txt
           cp src/hal/xenon/Makefile.xenon build/xenon/Makefile.xenon
