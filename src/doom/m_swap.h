@@ -31,13 +31,22 @@
 
 // Endianess handling.
 // WAD files are stored little endian.
-#if defined(__BIG_ENDIAN__) || \
-    (defined(__BYTE_ORDER__) && defined(__ORDER_BIG_ENDIAN__) && (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)) || \
-    defined(_BIG_ENDIAN) || \
-    ((defined(__powerpc__) || defined(__ppc__) || defined(__PPC__)) && !defined(__LITTLE_ENDIAN__))
-#ifndef DOOM_BIG_ENDIAN
-#define DOOM_BIG_ENDIAN 1
-#endif
+#undef DOOM_BIG_ENDIAN
+
+#if defined(PSP) || defined(__PSP__) || defined(__MIPSEL__) || defined(_MIPSEL) || \
+    defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64) || \
+    (defined(__BYTE_ORDER__) && defined(__ORDER_LITTLE_ENDIAN__) && (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__))
+    // Explicit little-endian platform (PSP Allegrex MIPS is little-endian)
+#elif defined(_XENON) || (defined(__powerpc__) && !defined(__LITTLE_ENDIAN__)) || \
+      (defined(__ppc__) && !defined(__LITTLE_ENDIAN__)) || \
+      (defined(__PPC__) && !defined(__LITTLE_ENDIAN__))
+    #define DOOM_BIG_ENDIAN 1
+#elif (defined(__BYTE_ORDER__) && defined(__ORDER_BIG_ENDIAN__) && (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__))
+    #define DOOM_BIG_ENDIAN 1
+#elif (defined(_BYTE_ORDER) && defined(_BIG_ENDIAN) && (_BYTE_ORDER == _BIG_ENDIAN))
+    #define DOOM_BIG_ENDIAN 1
+#elif (defined(BYTE_ORDER) && defined(BIG_ENDIAN) && (BYTE_ORDER == BIG_ENDIAN))
+    #define DOOM_BIG_ENDIAN 1
 #endif
 
 short	SwapSHORT(short);
