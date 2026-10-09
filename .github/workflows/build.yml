@@ -227,9 +227,10 @@ jobs:
           mkdir -p build/xenon
           gcc -O2 -Wall -Wno-parentheses -Wno-unused-const-variable \
             -Wno-unused-but-set-variable -Wno-unused-variable \
+            -Wno-misleading-indentation -Wno-format-overflow -Wno-unused-result \
             -std=c99 \
             src/doom/*.c src/hal/common/*.c src/hal/xenon/*.c \
-            -Isrc/doom -Isrc/hal/common \
+            -Isrc/doom -Isrc/hal/common -Isrc/hal/xenon/include \
             -lm -s -o build/xenon/doom_xenon_host
 
           # Run 30-frame verification test
@@ -241,9 +242,10 @@ jobs:
           powerpc-linux-gnu-gcc -O2 -mcpu=powerpc -m32 -mbig-endian \
             -Wall -Wno-parentheses -Wno-unused-const-variable \
             -Wno-unused-but-set-variable -Wno-unused-variable \
+            -Wno-misleading-indentation -Wno-format-overflow -Wno-unused-result \
             -std=c99 -DLIBXENON -D__BIG_ENDIAN__ \
             src/doom/*.c src/hal/common/*.c src/hal/xenon/*.c \
-            -Isrc/doom -Isrc/hal/common \
+            -Isrc/doom -Isrc/hal/common -Isrc/hal/xenon/include \
             -lm -s -o build/xenon/xenon.elf
 
           file build/xenon/xenon.elf

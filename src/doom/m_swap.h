@@ -34,8 +34,7 @@
 #if defined(__BIG_ENDIAN__) || \
     (defined(__BYTE_ORDER__) && defined(__ORDER_BIG_ENDIAN__) && (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)) || \
     defined(_BIG_ENDIAN) || \
-    defined(__powerpc__) || defined(__ppc__) || defined(__PPC__) || \
-    defined(_XBOX) || defined(LIBXENON)
+    ((defined(__powerpc__) || defined(__ppc__) || defined(__PPC__)) && !defined(__LITTLE_ENDIAN__))
 #ifndef DOOM_BIG_ENDIAN
 #define DOOM_BIG_ENDIAN 1
 #endif

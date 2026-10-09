@@ -17,13 +17,13 @@ DEVKITXENON   ?= /usr/local/xenon
 CFLAGS  := -O3 -mcpu=cell -mtune=cell -m32 -fno-builtin -Wall \
            -Wno-parentheses -Wno-unused-variable -Wno-unused-const-variable \
            -std=c99 -DLIBXENON -D__BIG_ENDIAN__ \
-           -I../../doom -I../common -I$(DEVKITXENON)/usr/include
+           -I../../doom -I../common -Iinclude -I$(DEVKITXENON)/usr/include
 
 LDFLAGS := -L$(DEVKITXENON)/usr/lib -lxenon -lm -lc
 
 DOOM_SRCS := $(wildcard ../../doom/*.c)
 COMMON_SRCS := ../common/i_gamepad.c ../common/i_sound_mixer.c ../common/i_net_ip.c
-XENON_SRCS := i_video_xenon.c i_sound_xenon.c i_system_xenon.c i_net_xenon.c i_main_xenon.c
+XENON_SRCS := i_video_xenon.c i_sound_xenon.c i_system_xenon.c i_net_xenon.c i_main_xenon.c libxenon_stubs.c
 
 ALL_SRCS := $(DOOM_SRCS) $(COMMON_SRCS) $(XENON_SRCS)
 ALL_OBJS := $(ALL_SRCS:.c=.o)

@@ -1715,7 +1715,7 @@ void M_DrawHost(void)
 
 void M_DrawJoin(void)
 {
-    char buf[64];
+    char buf[128];
     int mx = (SCREENWIDTH - 320) / 2;
     int title_x = (SCREENWIDTH - SHORT(((patch_t*)m_join_patch)->width)) / 2;
     int y;
@@ -1820,7 +1820,7 @@ void M_DrawHostLobby(void)
 
 void M_DrawClientLobby(void)
 {
-    char buf[80];
+    char buf[128];
     int mx = (SCREENWIDTH - 320) / 2;
     int node = I_Net_GetClientNode();
     int title_x = (SCREENWIDTH - SHORT(((patch_t*)m_join_patch)->width)) / 2;
