@@ -69,8 +69,7 @@ DOOM_OBJS = \
 COMMON_OBJS = \
     src/hal/common/i_gamepad.o \
     src/hal/common/i_sound_mixer.o \
-    src/hal/common/i_mus2midi.o \
-    src/hal/common/i_video_common.o
+    src/hal/common/i_mus2midi.o
 
 # PSP Hardware Abstraction Layer
 PSP_OBJS = \

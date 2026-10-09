@@ -56,9 +56,6 @@ static int psp_scaling_mode = 0;
 // Previous controller state to detect button edges for menu events
 static uint32_t last_buttons = 0;
 
-// Global wipe flag from i_video.h
-boolean wipe_active = false;
-
 // Display resolution globals
 int current_resolution_index = 0;
 int display_width = PSP_SCREEN_WIDTH;
