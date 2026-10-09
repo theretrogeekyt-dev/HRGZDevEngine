@@ -247,7 +247,7 @@ jobs:
             -Wno-error=incompatible-pointer-types \
             -Wno-error=int-conversion \
             -Wno-implicit-function-declaration \
-            -std=c99 -DLIBXENON -D_GNU_SOURCE -D_DEFAULT_SOURCE \
+            -std=gnu99 -DLIBXENON -D_GNU_SOURCE -D_DEFAULT_SOURCE \
             src/doom/*.c src/hal/common/*.c src/hal/xenon/*.c \
             -Isrc/doom -Isrc/hal/common -Isrc/hal/xenon/include \
             -lm -s -o build/xenon/xenon.elf > build/xenon/compile.log 2>&1 || true

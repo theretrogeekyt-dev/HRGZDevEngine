@@ -40,14 +40,14 @@ static inline uint64_t Xenon_ReadTimeBase(void)
 #if defined(__powerpc__) || defined(__ppc__) || defined(__PPC__)
 #if defined(__ppc64__) || defined(__powerpc64__) || defined(_ARCH_PPC64)
     uint64_t tb;
-    asm volatile("mfspr %0, 268" : "=r"(tb));
+    __asm__ __volatile__("mfspr %0, 268" : "=r"(tb));
     return tb;
 #else
     uint32_t tbu1, tbl, tbu2;
     do {
-        asm volatile("mfspr %0, 269" : "=r"(tbu1));
-        asm volatile("mfspr %0, 268" : "=r"(tbl));
-        asm volatile("mfspr %0, 269" : "=r"(tbu2));
+        __asm__ __volatile__("mfspr %0, 269" : "=r"(tbu1));
+        __asm__ __volatile__("mfspr %0, 268" : "=r"(tbl));
+        __asm__ __volatile__("mfspr %0, 269" : "=r"(tbu2));
     } while (tbu1 != tbu2);
     return (((uint64_t)tbu1) << 32) | (uint64_t)tbl;
 #endif
