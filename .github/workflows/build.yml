@@ -256,8 +256,11 @@ jobs:
           cp build/xenon/compile.log build/xenon/build_log.txt
 
           if [ ! -f build/xenon/xenon.elf ]; then
-            echo "::error::xenon.elf was not created!"
-            tail -n 100 build/xenon/compile.log
+            ERR=$(grep -i "error:" build/xenon/compile.log | head -n 5 | tr '\n' ' ')
+            if [ -z "$ERR" ]; then
+              ERR=$(tail -n 10 build/xenon/compile.log | tr '\n' ' ')
+            fi
+            echo "::error::$ERR"
             exit 1
           fi
 
