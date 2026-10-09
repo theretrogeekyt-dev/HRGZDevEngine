@@ -115,18 +115,14 @@ M_WriteFile
   void*		source,
   int		length )
 {
-    int		handle;
-    int		count;
-	
-    handle = open ( name, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0666);
-
-    if (handle == -1)
+    FILE* handle = fopen (name, "wb");
+    if (!handle)
 	return false;
 
-    count = write (handle, source, length);
-    close (handle);
+    size_t count = fwrite (source, 1, length, handle);
+    fclose (handle);
 	
-    if (count < length)
+    if ((int)count < length)
 	return false;
 		
     return true;
@@ -141,21 +137,19 @@ M_ReadFile
 ( char const*	name,
   byte**	buffer )
 {
-    int	handle, count, length;
-    struct stat	fileinfo;
-    byte		*buf;
-	
-    handle = open (name, O_RDONLY | O_BINARY, 0666);
-    if (handle == -1)
+    FILE* handle = fopen (name, "rb");
+    if (!handle)
 	I_Error ("Couldn't read file %s", name);
-    if (fstat (handle,&fileinfo) == -1)
-	I_Error ("Couldn't read file %s", name);
-    length = fileinfo.st_size;
-    buf = Z_Malloc (length, PU_STATIC, NULL);
-    count = read (handle, buf, length);
-    close (handle);
+
+    fseek (handle, 0, SEEK_END);
+    int length = ftell (handle);
+    fseek (handle, 0, SEEK_SET);
+
+    byte* buf = Z_Malloc (length, PU_STATIC, NULL);
+    size_t count = fread (buf, 1, length, handle);
+    fclose (handle);
 	
-    if (count < length)
+    if ((int)count < length)
 	I_Error ("Couldn't read file %s", name);
 		
     *buffer = buf;

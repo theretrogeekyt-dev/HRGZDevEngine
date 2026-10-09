@@ -54,6 +54,27 @@ rcsid[] = "$Id: w_wad.c,v 1.5 1997/02/03 16:47:57 b1 Exp $";
 #define O_BINARY 0
 #endif
 
+#if defined(PSP) || defined(__PSP__)
+#include <pspkernel.h>
+#include <pspiofilemgr.h>
+#include <pspdebug.h>
+
+#define wad_open(path)               sceIoOpen(path, PSP_O_RDONLY, 0777)
+#define wad_close(fd)                sceIoClose(fd)
+#define wad_read(fd, buf, size)      sceIoRead(fd, buf, size)
+#define wad_lseek(fd, ofs, whence)   sceIoLseek(fd, ofs, whence)
+#define WAD_SEEK_SET                 PSP_SEEK_SET
+#define WAD_SEEK_CUR                 PSP_SEEK_CUR
+#define WAD_SEEK_END                 PSP_SEEK_END
+#else
+#define wad_open(path)               open(path, O_RDONLY | O_BINARY)
+#define wad_close(fd)                close(fd)
+#define wad_read(fd, buf, size)      read(fd, buf, size)
+#define wad_lseek(fd, ofs, whence)   lseek(fd, ofs, whence)
+#define WAD_SEEK_SET                 SEEK_SET
+#define WAD_SEEK_CUR                 SEEK_CUR
+#define WAD_SEEK_END                 SEEK_END
+#endif
 
 #include "doomtype.h"
 #include "m_swap.h"
@@ -97,12 +118,19 @@ char* strupr (char* s)
 
 int filelength (int handle) 
 { 
+#if defined(PSP) || defined(__PSP__)
+    SceOff cur = sceIoLseek(handle, 0, PSP_SEEK_CUR);
+    SceOff end = sceIoLseek(handle, 0, PSP_SEEK_END);
+    sceIoLseek(handle, cur, PSP_SEEK_SET);
+    return (int)end;
+#else
     struct stat	fileinfo;
     
     if (fstat (handle,&fileinfo) == -1)
 	I_Error ("Error fstating");
 
     return (int)fileinfo.st_size;
+#endif
 }
 #endif
 
@@ -186,69 +214,96 @@ void W_AddFile (char *filename)
 	reloadlump = numlumps;
     }
 		
-    if ( (handle = open (filename,O_RDONLY | O_BINARY)) == -1)
+    handle = wad_open (filename);
+    if (handle < 0)
     {
-	printf (" couldn't open %s\n",filename);
-	return;
+#if defined(PSP) || defined(__PSP__)
+        pspDebugScreenSetTextColor(0xFF0000FF);
+        pspDebugScreenPrintf("  [!] Failed to open WAD: %s (err: 0x%08X)\n", filename, handle);
+        pspDebugScreenSetTextColor(0xFFFFFFFF);
+#else
+        printf (" couldn't open %s\n", filename);
+#endif
+        return;
     }
 
-    printf (" adding %s\n",filename);
+#if defined(PSP) || defined(__PSP__)
+    pspDebugScreenPrintf("  Reading: %s\n", filename);
+#else
+    printf (" adding %s\n", filename);
+#endif
     startlump = numlumps;
-	
+
     if (strcmpi (filename+strlen(filename)-3 , "wad" ) )
     {
-	// single lump file
-	fileinfo = &singleinfo;
-	singleinfo.filepos = 0;
-	singleinfo.size = LONG(filelength(handle));
-	ExtractFileBase (filename, singleinfo.name);
-	numlumps++;
+        // single lump file
+        fileinfo = &singleinfo;
+        singleinfo.filepos = 0;
+        singleinfo.size = LONG(filelength(handle));
+        ExtractFileBase (filename, singleinfo.name);
+        numlumps++;
     }
     else 
     {
-	// WAD file
-	read (handle, &header, sizeof(header));
-	if (strncmp(header.identification,"IWAD",4))
-	{
-	    // Homebrew levels?
-	    if (strncmp(header.identification,"PWAD",4))
-	    {
-		I_Error ("Wad file %s doesn't have IWAD "
-			 "or PWAD id\n", filename);
-	    }
-	    
-	    // ???modifiedgame = true;		
-	}
-	header.numlumps = LONG(header.numlumps);
-	header.infotableofs = LONG(header.infotableofs);
-	length = header.numlumps*sizeof(filelump_t);
-	fileinfo = alloca (length);
-	lseek (handle, header.infotableofs, SEEK_SET);
-	read (handle, fileinfo, length);
-	numlumps += header.numlumps;
+        // WAD file
+        int r = wad_read (handle, &header, sizeof(header));
+        if (r < (int)sizeof(header))
+        {
+            I_Error ("Wad file %s header read failed\n", filename);
+        }
+        if (strncmp(header.identification, "IWAD", 4))
+        {
+            if (strncmp(header.identification, "PWAD", 4))
+            {
+                I_Error ("Wad file %s doesn't have IWAD or PWAD id (got %.4s)\n", filename, header.identification);
+            }
+        }
+        header.numlumps = LONG(header.numlumps);
+        header.infotableofs = LONG(header.infotableofs);
+        length = header.numlumps * sizeof(filelump_t);
+
+#if defined(PSP) || defined(__PSP__)
+        pspDebugScreenPrintf("  Header: %.4s, Lumps: %d\n", header.identification, header.numlumps);
+#endif
+
+        fileinfo = (filelump_t*)malloc (length);
+        if (!fileinfo)
+        {
+            I_Error ("W_AddFile: failed to allocate %d bytes for fileinfo\n", length);
+        }
+        wad_lseek (handle, header.infotableofs, WAD_SEEK_SET);
+        r = wad_read (handle, fileinfo, length);
+        if (r < length)
+        {
+            I_Error ("W_AddFile: only read %d of %d bytes for lump directory\n", r, length);
+        }
+        numlumps += header.numlumps;
     }
 
-    
     // Fill in lumpinfo
-    lumpinfo = realloc (lumpinfo, numlumps*sizeof(lumpinfo_t));
-
+    lumpinfo = (lumpinfo_t*)realloc (lumpinfo, numlumps * sizeof(lumpinfo_t));
     if (!lumpinfo)
-	I_Error ("Couldn't realloc lumpinfo");
+        I_Error ("Couldn't realloc lumpinfo");
 
     lump_p = &lumpinfo[startlump];
-	
     storehandle = reloadname ? -1 : handle;
-	
-    for (i=startlump ; i<numlumps ; i++,lump_p++, fileinfo++)
+
+    filelump_t* fi = fileinfo;
+    for (i = startlump; i < numlumps; i++, lump_p++, fi++)
     {
-	lump_p->handle = storehandle;
-	lump_p->position = LONG(fileinfo->filepos);
-	lump_p->size = LONG(fileinfo->size);
-	strncpy (lump_p->name, fileinfo->name, 8);
+        lump_p->handle = storehandle;
+        lump_p->position = LONG(fi->filepos);
+        lump_p->size = LONG(fi->size);
+        strncpy (lump_p->name, fi->name, 8);
     }
-	
+
+    if (!strcmpi (filename+strlen(filename)-3 , "wad" ))
+    {
+        free (fileinfo);
+    }
+
     if (reloadname)
-	close (handle);
+        wad_close (handle);
 }
 
 
@@ -272,32 +327,37 @@ void W_Reload (void)
     if (!reloadname)
 	return;
 		
-    if ( (handle = open (reloadname,O_RDONLY | O_BINARY)) == -1)
+    handle = wad_open (reloadname);
+    if (handle < 0)
 	I_Error ("W_Reload: couldn't open %s",reloadname);
 
-    read (handle, &header, sizeof(header));
+    wad_read (handle, &header, sizeof(header));
     lumpcount = LONG(header.numlumps);
     header.infotableofs = LONG(header.infotableofs);
     length = lumpcount*sizeof(filelump_t);
-    fileinfo = alloca (length);
-    lseek (handle, header.infotableofs, SEEK_SET);
-    read (handle, fileinfo, length);
+    fileinfo = (filelump_t*)malloc (length);
+    if (!fileinfo)
+        I_Error ("W_Reload: failed to allocate %d bytes", length);
+    wad_lseek (handle, header.infotableofs, WAD_SEEK_SET);
+    wad_read (handle, fileinfo, length);
     
     // Fill in lumpinfo
     lump_p = &lumpinfo[reloadlump];
 	
+    filelump_t* fi = fileinfo;
     for (i=reloadlump ;
 	 i<reloadlump+lumpcount ;
-	 i++,lump_p++, fileinfo++)
+	 i++,lump_p++, fi++)
     {
 	if (lumpcache[i])
 	    Z_Free (lumpcache[i]);
 
-	lump_p->position = LONG(fileinfo->filepos);
-	lump_p->size = LONG(fileinfo->size);
+	lump_p->position = LONG(fi->filepos);
+	lump_p->size = LONG(fi->size);
     }
 	
-    close (handle);
+    free (fileinfo);
+    wad_close (handle);
 }
 
 
@@ -339,6 +399,12 @@ void W_InitMultipleFiles (char** filenames)
 	I_Error ("Couldn't allocate lumpcache");
 
     memset (lumpcache,0, size);
+
+#if defined(PSP) || defined(__PSP__)
+    pspDebugScreenSetTextColor(0xFF00FF00);
+    pspDebugScreenPrintf("  [OK] Successfully indexed %d lumps\n", numlumps);
+    pspDebugScreenSetTextColor(0xFFFFFFFF);
+#endif
 }
 
 
@@ -473,21 +539,22 @@ W_ReadLump
     if (l->handle == -1)
     {
 	// reloadable file, so use open / read / close
-	if ( (handle = open (reloadname,O_RDONLY | O_BINARY)) == -1)
+	handle = wad_open (reloadname);
+	if (handle < 0)
 	    I_Error ("W_ReadLump: couldn't open %s",reloadname);
     }
     else
 	handle = l->handle;
 		
-    lseek (handle, l->position, SEEK_SET);
-    c = read (handle, dest, l->size);
+    wad_lseek (handle, l->position, WAD_SEEK_SET);
+    c = wad_read (handle, dest, l->size);
 
     if (c < l->size)
 	I_Error ("W_ReadLump: only read %i of %i on lump %i",
 		 c,l->size,lump);	
 
     if (l->handle == -1)
-	close (handle);
+	wad_close (handle);
 		
     // ??? I_EndRead ();
 }
