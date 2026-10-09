@@ -335,29 +335,6 @@ static LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPara
     return DefWindowProcA(hWnd, msg, wParam, lParam);
 }
 
-void I_InitGraphics(void)
-{
-    // Allocate 320x200 software framebuffer
-    screens[0] = (byte*)malloc(SCREENWIDTH * SCREENHEIGHT);
-    if (!screens[0])
-        I_Error("I_InitGraphics: Could not allocate primary framebuffer");
-
-#if defined(_WIN32)
-    HINSTANCE hInstance = GetModuleHandle(NULL);
-
-    WNDCLASSEXA wc;
-    memset(&wc, 0, sizeof(wc));
-    wc.cbSize = sizeof(wc);
-    wc.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW;
-    wc.lpfnWndProc = WndProc;
-    wc.hInstance = hInstance;
-    wc.hIcon = LoadIcon(NULL, IDI_APPLICATION);
-    wc.hCursor = LoadCursor(NULL, IDC_ARROW);
-    wc.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
-    wc.lpszClassName = DOOM_WINDOW_CLASS;
-
-    RegisterClassExA(&wc);
-
 static RECT windowed_rect = { 0, 0, 1280, 720 };
 
 void I_SetResolution(int width, int height, boolean fullscreen)
@@ -405,6 +382,29 @@ void I_ToggleFullscreen(void)
 {
     I_SetResolution(display_width, display_height, !display_fullscreen);
 }
+
+void I_InitGraphics(void)
+{
+    // Allocate 320x200 software framebuffer
+    screens[0] = (byte*)malloc(SCREENWIDTH * SCREENHEIGHT);
+    if (!screens[0])
+        I_Error("I_InitGraphics: Could not allocate primary framebuffer");
+
+#if defined(_WIN32)
+    HINSTANCE hInstance = GetModuleHandle(NULL);
+
+    WNDCLASSEXA wc;
+    memset(&wc, 0, sizeof(wc));
+    wc.cbSize = sizeof(wc);
+    wc.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW;
+    wc.lpfnWndProc = WndProc;
+    wc.hInstance = hInstance;
+    wc.hIcon = LoadIcon(NULL, IDI_APPLICATION);
+    wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+    wc.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
+    wc.lpszClassName = DOOM_WINDOW_CLASS;
+
+    RegisterClassExA(&wc);
 
     int win_w = 1280;
     int win_h = 720;
