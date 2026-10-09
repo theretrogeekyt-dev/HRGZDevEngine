@@ -44,7 +44,7 @@ void I_Init(void)
 byte* I_ZoneBase(int* size)
 {
     // On PSP (32MB RAM on Fat, 64MB on Slim), attempt descending zone allocations
-    int try_mb[] = { 14, 12, 10, 8, 6 };
+    int try_mb[] = { 12, 10, 8, 6 };
     int num_tries = sizeof(try_mb) / sizeof(try_mb[0]);
 
     int p = M_CheckParm("-mb");
@@ -52,7 +52,7 @@ byte* I_ZoneBase(int* size)
     {
         try_mb[0] = atoi(myargv[p + 1]);
         if (try_mb[0] < 4) try_mb[0] = 4;
-        if (try_mb[0] > 24) try_mb[0] = 24;
+        if (try_mb[0] > 16) try_mb[0] = 16;
     }
 
     for (int i = 0; i < num_tries; i++)
@@ -65,7 +65,7 @@ byte* I_ZoneBase(int* size)
         }
     }
 
-    I_Error("I_ZoneBase: Failed to allocate contiguous DOOM zone memory (tried 14MB down to 6MB)");
+    I_Error("I_ZoneBase: Failed to allocate contiguous DOOM zone memory (tried 12MB down to 6MB)");
     return NULL;
 }
 
@@ -119,30 +119,39 @@ void I_Error(char* error, ...)
 
     // Save error to log file on memory stick
     FILE* logf = fopen("HRGZ_ERROR.TXT", "w");
+    if (!logf && psp_game_dir[0] != '\0')
+    {
+        char errpath[300];
+        snprintf(errpath, sizeof(errpath), "%s/HRGZ_ERROR.TXT", psp_game_dir);
+        logf = fopen(errpath, "w");
+    }
     if (logf)
     {
         fprintf(logf, "HRGZDevEngine DOOM PSP FATAL ERROR:\n%s\n", msg);
         fclose(logf);
     }
 
-    // Display error directly on PSP display using hardware debug screen
+    // Display error directly on PSP display using hardware debug screen (alpha must be 0xFF)
     pspDebugScreenInit();
-    pspDebugScreenSetTextColor(0x000000FF); // Red
+    pspDebugScreenSetTextColor(0xFF0000FF); // Red (Opaque alpha 0xFF)
     pspDebugScreenPrintf("\n  =======================================================\n");
     pspDebugScreenPrintf("  HRGZDevEngine DOOM PSP - FATAL ERROR\n");
     pspDebugScreenPrintf("  =======================================================\n\n");
-    pspDebugScreenSetTextColor(0x00FFFFFF); // White
+    pspDebugScreenSetTextColor(0xFFFFFFFF); // White (Opaque alpha 0xFF)
     pspDebugScreenPrintf("  Error: %s\n\n", msg);
-    pspDebugScreenSetTextColor(0x0000FFFF); // Yellow
+    pspDebugScreenSetTextColor(0xFF00FFFF); // Yellow (Opaque alpha 0xFF)
     pspDebugScreenPrintf("  If files are missing, ensure DOOM1.WAD or DOOM.WAD is in:\n");
-    pspDebugScreenPrintf("  ms0:/PSP/GAME/HRGZDOOM/\n\n");
-    pspDebugScreenSetTextColor(0x00AAAAAA); // Grey
+    if (psp_game_dir[0] != '\0')
+        pspDebugScreenPrintf("  %s/\n\n", psp_game_dir);
+    else
+        pspDebugScreenPrintf("  ms0:/PSP/GAME/HRGZDOOM/\n\n");
+    pspDebugScreenSetTextColor(0xFFAAAAAA); // Grey (Opaque alpha 0xFF)
     pspDebugScreenPrintf("  Saved error details to HRGZ_ERROR.TXT\n");
     pspDebugScreenPrintf("  Press (X) or (O) to exit to PSP Home Menu.\n");
 
-    // Sample controller and wait for user acknowledgment or 15-second timeout
+    // Sample controller and wait for user acknowledgment or 30-second timeout
     SceCtrlData pad;
-    for (int i = 0; i < 900; i++)
+    for (int i = 0; i < 1800; i++)
     {
         sceCtrlReadBufferPositive(&pad, 1);
         if (pad.Buttons & (PSP_CTRL_CROSS | PSP_CTRL_CIRCLE | PSP_CTRL_START))

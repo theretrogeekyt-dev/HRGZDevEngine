@@ -11,6 +11,7 @@
 
 #include <pspkernel.h>
 #include <pspdisplay.h>
+#include <pspge.h>
 #include <pspctrl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -33,16 +34,10 @@
 #define PSP_FRAME_SIZE     (PSP_BUF_STRIDE * PSP_SCREEN_HEIGHT * sizeof(uint32_t))
 
 // CPU writes to UNCACHED VRAM (0x44000000) to bypass CPU cache flushing
-static uint32_t* vram_cpu[2] = {
-    (uint32_t*)0x44000000,
-    (uint32_t*)(0x44000000 + PSP_FRAME_SIZE)
-};
+static uint32_t* vram_cpu[2] = { NULL, NULL };
 
 // Display controller hardware reads from CACHED physical VRAM (0x04000000)
-static void* vram_display[2] = {
-    (void*)0x04000000,
-    (void*)(0x04000000 + PSP_FRAME_SIZE)
-};
+static void* vram_display[2] = { NULL, NULL };
 static int current_buffer = 0;
 
 // 256-color 32-bit RGBA palette lookup table
@@ -99,6 +94,15 @@ static void InitScalingLUT(void)
 
 void I_InitGraphics(void)
 {
+    void* edram = sceGeEdramGetAddr();
+    if (!edram) edram = (void*)0x04000000;
+
+    vram_display[0] = edram;
+    vram_display[1] = (void*)((uint8_t*)edram + PSP_FRAME_SIZE);
+
+    vram_cpu[0] = (uint32_t*)((uintptr_t)edram | 0x40000000);
+    vram_cpu[1] = (uint32_t*)(((uintptr_t)edram + PSP_FRAME_SIZE) | 0x40000000);
+
     InitScalingLUT();
 
     // Set PSP Display mode to 480x272, 32-bit RGBA (8888)
@@ -108,7 +112,7 @@ void I_InitGraphics(void)
     memset((void*)vram_cpu[0], 0, PSP_FRAME_SIZE);
     memset((void*)vram_cpu[1], 0, PSP_FRAME_SIZE);
 
-    // Present initial buffer using 0x04000000 physical VRAM address
+    // Present initial buffer using physical VRAM address
     sceDisplaySetFrameBuf(vram_display[0], PSP_BUF_STRIDE, PSP_DISPLAY_PIXEL_FORMAT_8888, PSP_DISPLAY_SETBUF_IMMEDIATE);
     current_buffer = 0;
 

@@ -23,7 +23,7 @@
 // PSP Homebrew Module Info
 PSP_MODULE_INFO("HRGZ_DOOM", 0, 1, 0);
 PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER | THREAD_ATTR_VFPU);
-PSP_HEAP_SIZE_KB(-2048); // Reserve 2MB for OS/threads, rest for heap
+PSP_HEAP_SIZE_KB(18432); // Safe 18MB heap for DOOM zone + audio + lumps (leaves headroom for thread stacks)
 
 static int exit_request = 0;
 
@@ -61,10 +61,6 @@ int main(int argc, char **argv)
 {
     // Initialize callbacks so the user can exit to the PSP XMB
     SetupCallbacks();
-
-    // Overclock the PSP to its official maximum 333 MHz performance mode (CPU 333, BUS 166)
-    // Ensures locked 60 FPS software rendering and audio mixing
-    scePowerSetClockFrequency(333, 333, 166);
 
     // Switch working directory to the directory of the EBOOT.PBP so doom1.wad is found
     if (argc > 0 && argv[0])

@@ -571,6 +571,24 @@ void D_AddFile (char *file)
 }
 
 //
+// check_file_exists
+// Portable file presence and readability verification using standard C fopen.
+// Essential on embedded platforms like PSP where POSIX access() is non-functional.
+//
+static boolean check_file_exists (const char* filename)
+{
+    if (!filename || filename[0] == '\0')
+        return false;
+    FILE* handle = fopen(filename, "rb");
+    if (handle)
+    {
+        fclose(handle);
+        return true;
+    }
+    return false;
+}
+
+//
 // IdentifyVersion
 // Checks availability of IWAD files by name,
 // to determine whether registered/commercial features
@@ -596,7 +614,7 @@ void IdentifyVersion (void)
     if (iwad_param && iwad_param < myargc - 1)
     {
         char* custom_iwad = myargv[iwad_param + 1];
-        if (!access(custom_iwad, R_OK))
+        if (check_file_exists(custom_iwad))
         {
             gamemode = commercial;
             if (strstr(custom_iwad, "doom1") || strstr(custom_iwad, "DOOM1"))
@@ -712,7 +730,7 @@ void IdentifyVersion (void)
 	return;
     }
 
-    if ( !access (doom2fwad,R_OK) )
+    if ( check_file_exists (doom2fwad) )
     {
 	gamemode = commercial;
 	language = french;
@@ -720,7 +738,7 @@ void IdentifyVersion (void)
 	D_AddFile (doom2fwad);
 	return;
     }
-    if ( !access (doom2fwad_u,R_OK) )
+    if ( check_file_exists (doom2fwad_u) )
     {
 	gamemode = commercial;
 	language = french;
@@ -729,78 +747,78 @@ void IdentifyVersion (void)
 	return;
     }
 
-    if ( !access (doom2wad,R_OK) )
+    if ( check_file_exists (doom2wad) )
     {
 	gamemode = commercial;
 	D_AddFile (doom2wad);
 	return;
     }
-    if ( !access (doom2wad_u,R_OK) )
+    if ( check_file_exists (doom2wad_u) )
     {
 	gamemode = commercial;
 	D_AddFile (doom2wad_u);
 	return;
     }
 
-    if ( !access (plutoniawad, R_OK ) )
+    if ( check_file_exists (plutoniawad) )
     {
       gamemode = commercial;
       D_AddFile (plutoniawad);
       return;
     }
-    if ( !access (plutoniawad_u, R_OK ) )
+    if ( check_file_exists (plutoniawad_u) )
     {
       gamemode = commercial;
       D_AddFile (plutoniawad_u);
       return;
     }
 
-    if ( !access ( tntwad, R_OK ) )
+    if ( check_file_exists ( tntwad ) )
     {
       gamemode = commercial;
       D_AddFile (tntwad);
       return;
     }
-    if ( !access ( tntwad_u, R_OK ) )
+    if ( check_file_exists ( tntwad_u ) )
     {
       gamemode = commercial;
       D_AddFile (tntwad_u);
       return;
     }
 
-    if ( !access (doomuwad,R_OK) )
+    if ( check_file_exists (doomuwad) )
     {
       gamemode = retail;
       D_AddFile (doomuwad);
       return;
     }
-    if ( !access (doomuwad_u,R_OK) )
+    if ( check_file_exists (doomuwad_u) )
     {
       gamemode = retail;
       D_AddFile (doomuwad_u);
       return;
     }
 
-    if ( !access (doomwad,R_OK) )
+    if ( check_file_exists (doomwad) )
     {
       gamemode = registered;
       D_AddFile (doomwad);
       return;
     }
-    if ( !access (doomwad_u,R_OK) )
+    if ( check_file_exists (doomwad_u) )
     {
       gamemode = registered;
       D_AddFile (doomwad_u);
       return;
     }
 
-    if ( !access (doom1wad,R_OK) )
+    if ( check_file_exists (doom1wad) )
     {
       gamemode = shareware;
       D_AddFile (doom1wad);
       return;
     }
-    if ( !access (doom1wad_u,R_OK) )
+    if ( check_file_exists (doom1wad_u) )
     {
       gamemode = shareware;
       D_AddFile (doom1wad_u);
@@ -809,6 +827,14 @@ void IdentifyVersion (void)
 
 #if defined(PSP) || defined(__PSP__)
     const char* psp_paths[] = {
+        "doom1.wad",
+        "DOOM1.WAD",
+        "doom.wad",
+        "DOOM.WAD",
+        "doom2.wad",
+        "DOOM2.WAD",
+        "doomu.wad",
+        "DOOMU.WAD",
         "ms0:/PSP/GAME/HRGZDOOM/doom1.wad",
         "ms0:/PSP/GAME/HRGZDOOM/DOOM1.WAD",
         "ms0:/PSP/GAME/HRGZDOOM/doom.wad",
@@ -820,7 +846,7 @@ void IdentifyVersion (void)
     };
     for (size_t p_idx = 0; p_idx < sizeof(psp_paths)/sizeof(psp_paths[0]); p_idx++)
     {
-        if (!access(psp_paths[p_idx], R_OK))
+        if (check_file_exists(psp_paths[p_idx]))
         {
             if (strstr(psp_paths[p_idx], "doom1") || strstr(psp_paths[p_idx], "DOOM1"))
                 gamemode = shareware;
