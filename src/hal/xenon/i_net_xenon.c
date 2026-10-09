@@ -38,3 +38,4 @@ void I_NetCmd(void)
         doomcom->remotenode = 0;
     }
 }
+

@@ -208,7 +208,7 @@ jobs:
           path: build/test_results/
 
   #--------------------------------------------------------------------------
-  # 4. Xbox 360 Homebrew Package (Peer Pressure Softmod & XeLL)
+  # 4. Xbox 360 Homebrew Package (Peer Pressure Softmod via XeLL)
   #--------------------------------------------------------------------------
   build-xbox360:
     name: Xbox 360 Homebrew (Peer Pressure / XeLL)
@@ -217,7 +217,12 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Build & Package Xbox 360 Homebrew
+      - name: Install PowerPC Cross-Compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-powerpc-linux-gnu libc6-dev-powerpc-cross binutils-powerpc-linux-gnu
+
+      - name: Run Host Verification Test on Xbox 360 HAL
         run: |
           mkdir -p build/xenon
           gcc -O2 -Wall -Wno-parentheses -Wno-unused-const-variable \
@@ -227,18 +232,30 @@ jobs:
             -Isrc/doom -Isrc/hal/common \
             -lm -s -o build/xenon/doom_xenon_host
 
-          # Run automated playsim verification on Xbox 360 HAL
+          # Run 30-frame verification test
           ./build/xenon/doom_xenon_host -iwad doom1.wad -warp 1 1 -testframes 30
 
-          # Prepare release distribution package
+      - name: Cross-Compile Native PowerPC XeLL ELF (xenon.elf)
+        run: |
+          # Compile true 32-bit Big-Endian PowerPC executable for Xbox 360 XeLL
+          powerpc-linux-gnu-gcc -O2 -mcpu=powerpc -m32 -mbig-endian \
+            -Wall -Wno-parentheses -Wno-unused-const-variable \
+            -Wno-unused-but-set-variable -Wno-unused-variable \
+            -std=c99 -DLIBXENON -D__BIG_ENDIAN__ \
+            src/doom/*.c src/hal/common/*.c src/hal/xenon/*.c \
+            -Isrc/doom -Isrc/hal/common \
+            -lm -s -o build/xenon/xenon.elf
+
+          file build/xenon/xenon.elf
+
+      - name: Package Xbox 360 Release Zip
+        run: |
           cp src/hal/xenon/README_XBOX360.txt build/xenon/README_XBOX360.txt
           cp src/hal/xenon/Makefile.xenon build/xenon/Makefile.xenon
           cp doom1.wad build/xenon/doom1.wad
-          cp build/xenon/doom_xenon_host build/xenon/xenon.elf
-          cp build/xenon/doom_xenon_host build/xenon/default.xex
 
           cd build/xenon
-          zip -r ../../HRGZDevEngine-DOOM-Xbox360.zip xenon.elf default.xex doom1.wad README_XBOX360.txt Makefile.xenon
+          zip -r ../../HRGZDevEngine-DOOM-Xbox360.zip xenon.elf doom1.wad README_XBOX360.txt Makefile.xenon
 
       - name: Upload Xbox 360 Artifact
         uses: actions/upload-artifact@v4
@@ -306,7 +323,7 @@ jobs:
           | 🍏 **macOS** | [`HRGZDevEngine-DOOM-macOS.zip`](https://github.com/${{ github.repository }}/releases/download/latest/HRGZDevEngine-DOOM-macOS.zip) | Metal HW Accel + Cocoa + AudioToolbox |
           | 🪟 **Windows** | [`HRGZDevEngine-DOOM-Windows.zip`](https://github.com/${{ github.repository }}/releases/download/latest/HRGZDevEngine-DOOM-Windows.zip) | Win32 + OpenGL HW Accel + WinMM + Winsock2 |
           | 🐧 **Linux** | [`HRGZDevEngine-DOOM-Linux-SDL2.zip`](https://github.com/${{ github.repository }}/releases/download/latest/HRGZDevEngine-DOOM-Linux-SDL2.zip) | SDL2 Driver + Software Audio Mixer |
-          | 🎮 **Xbox 360** | [`HRGZDevEngine-DOOM-Xbox360.zip`](https://github.com/${{ github.repository }}/releases/download/latest/HRGZDevEngine-DOOM-Xbox360.zip) | "Peer Pressure" Softmod (XeLL ELF + Dashboard XEX) |
+          | 🎮 **Xbox 360** | [`HRGZDevEngine-DOOM-Xbox360.zip`](https://github.com/${{ github.repository }}/releases/download/latest/HRGZDevEngine-DOOM-Xbox360.zip) | "Peer Pressure" Softmod (XeLL 720p 16:9 PowerPC ELF) |
 
           ---
 

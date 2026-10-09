@@ -144,3 +144,4 @@ int  I_RegisterSong(void* data)    { (void)data; return 1; }
 void I_PlaySong(int handle, int looping) { (void)handle; (void)looping; }
 void I_StopSong(int handle)        { (void)handle; }
 void I_UnRegisterSong(int handle)  { (void)handle; }
+

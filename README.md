@@ -37,11 +37,9 @@ The original 1997 Linux release was riddled with 32-bit pointer assumptions, una
 
 ### 5. Xbox 360 Homebrew & "Peer Pressure" Softmod HAL (`src/hal/xenon/`)
 - **Peer Pressure Softmod Support**: Built specifically to test and leverage Grimdoomer's persistent [Xbox 360 Peer Pressure Softmod](https://github.com/grimdoomer/Xbox360PeerPressure).
-- **Dual-Boot Execution Architecture**:
-  - **XeLL Bare-Metal Boot** (`xenon.elf`): Direct supervisor boot via the console's Eject button.
-  - **Dashboard Unsigned XEX** (`default.xex`): Launches from Aurora, FreestyleDash, XeXMenu, or the softmod launcher.
+- **XeLL Bare-Metal Execution (`xenon.elf`)**: Boots directly on bare-metal hardware via the console's **Eject Button** (Peer Pressure's built-in OtherOS XeLL environment), completely bypassing dashboard limitations.
 - **16:9 720p Widescreen Output**: Fast LUT-based scaling from DOOM's 426x200 16:9 framebuffer to 1280x720 HDTV resolution.
-- **PowerPC 50 MHz TimeBase Hardware Timer**: 64-bit `mftb` register timebase driver guaranteeing deterministic 35 Hz playsim tics.
+- **PowerPC 50 MHz TimeBase Hardware Timer**: 64-bit `mftb` register timebase driver guaranteeing deterministic 35 Hz playsim tics on PowerPC.
 - **Twin-Stick Controller Mapping**: Full analog and digital integration with Xbox 360 wireless and USB controllers.
 - **Multi-Device Storage Autodiscovery**: Automatically detects IWADs across USB (`uda:`, `usb:`), internal HDD (`Hdd1:\PeerPressure\OtherOS\`), and game root.
 
@@ -168,25 +166,30 @@ gcc -O2 -std=c99 \
 ./build/linux/doom_sdl -iwad doom1.wad
 ```
 
-### 4. Xbox 360 Homebrew ("Peer Pressure" Softmod & XeLL)
-Build using the LibXenon cross-compilation toolchain or Makefile:
+### 4. Xbox 360 Homebrew ("Peer Pressure" Softmod via XeLL)
+Xbox 360 bare-metal homebrew applications are built as **PowerPC ELF** binaries (`xenon.elf`) that run under **XeLL** (the Xenon Linux Loader), taking direct uninhibited control of the Xenon PowerPC CPU, 720p 16:9 framebuffer, audio DAC, and USB controllers.
 
+#### Why does Aurora say "Unable to open the file"?
+Aurora is an Xbox 360 dashboard application that runs inside the official OS (`xboxkrnl.exe`). Dashboards strictly require native Xbox Executables (`.xex`). Bare-metal homebrew like `xenon.elf` runs **outside** the dashboard directly on the hardware via XeLL!
+
+#### How to Play on Xbox 360 (Peer Pressure Softmod):
+1. **Booting via the Console Eject Button (Recommended)**:
+   - Format a USB drive to FAT32.
+   - Copy `xenon.elf` and your IWAD (`doom1.wad` or `doom2.wad`) directly to the **ROOT** of the USB drive (or to `Hdd1:\PeerPressure\OtherOS\` on console HDD).
+   - Plug the USB drive into your console.
+   - Turn on the console by pressing the **EJECT BUTTON** (not the power button).
+   - Peer Pressure will boot XeLL, auto-detect `xenon.elf`, and launch DOOM in 720p 16:9 immediately!
+2. **Booting from Aurora via XeLL Shortcut**:
+   - If you are already inside Aurora and don't want to get up to press the Eject button, use the standard community homebrew utility `XellLaunch` (available in SoftmodExtras / Xbox 360 homebrew tools) to soft-reboot the console into XeLL from Aurora.
+
+#### Compiling with PowerPC Cross-Compiler:
 ```bash
-cd src/hal/xenon
-make -f Makefile.xenon CROSS_COMPILE=xenon-
-
-# Produces:
-# - xenon.elf   : Direct XeLL eject-boot executable
-# - default.xex : Unsigned Dashboard executable for Peer Pressure softmod
+# Cross-compile for PowerPC 32-bit Big-Endian (XeLL):
+powerpc-linux-gnu-gcc -O2 -mcpu=powerpc -m32 -mbig-endian \
+  -std=c99 -DLIBXENON -D__BIG_ENDIAN__ \
+  src/doom/*.c src/hal/common/*.c src/hal/xenon/*.c \
+  -Isrc/doom -Isrc/hal/common -lm -s -o build/xenon/xenon.elf
 ```
-
-#### Installing on Xbox 360 via Peer Pressure Softmod:
-1. **XeLL Eject Boot**:
-   - Copy `xenon.elf` and your IWAD (`doom1.wad` or `doom2.wad`) to the root of a FAT32 USB drive or `Hdd1:\PeerPressure\OtherOS\`.
-   - Turn on the console using the **Eject Button**. XeLL boots and runs DOOM in 720p 16:9 immediately!
-2. **Dashboard Launch (Aurora, FreestyleDash, XeXMenu)**:
-   - Copy the folder containing `default.xex` and `doom1.wad` to `Usb0:\DOOM\` or `Hdd1:\Games\DOOM\`.
-   - Launch directly from your dashboard—Peer Pressure removes all XEX signature and hash checks!
 
 ### 5. Automated Headless Test Suite (Any OS)
 ```bash
