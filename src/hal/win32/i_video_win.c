@@ -45,8 +45,8 @@ static HDC        hdc_main = NULL;
 static HGLRC      hglrc_main = NULL;
 static GLuint     gl_texture_id = 0;
 static boolean    opengl_enabled = false;
-static int        win_width = 0;
-static int        win_height = 0;
+static int        win_width = SCREENWIDTH * DEFAULT_SCALE;
+static int        win_height = SCREENHEIGHT * DEFAULT_SCALE;
 
 static BITMAPINFO bmi;
 static uint32_t   argb_palette[256];
