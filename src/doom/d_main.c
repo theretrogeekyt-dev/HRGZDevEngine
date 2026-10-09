@@ -630,15 +630,33 @@ void IdentifyVersion (void)
     doom1wad = malloc(strlen(doomwaddir)+16);
     sprintf(doom1wad, "%s/doom1.wad", doomwaddir);
 
+    char* doom1wad_u = malloc(strlen(doomwaddir)+16);
+    sprintf(doom1wad_u, "%s/DOOM1.WAD", doomwaddir);
+
+    char* doomwad_u = malloc(strlen(doomwaddir)+16);
+    sprintf(doomwad_u, "%s/DOOM.WAD", doomwaddir);
+
+    char* doom2wad_u = malloc(strlen(doomwaddir)+16);
+    sprintf(doom2wad_u, "%s/DOOM2.WAD", doomwaddir);
+
+    char* doomuwad_u = malloc(strlen(doomwaddir)+16);
+    sprintf(doomuwad_u, "%s/DOOMU.WAD", doomwaddir);
+
     plutoniawad = malloc(strlen(doomwaddir)+16);
     sprintf(plutoniawad, "%s/plutonia.wad", doomwaddir);
+    char* plutoniawad_u = malloc(strlen(doomwaddir)+16);
+    sprintf(plutoniawad_u, "%s/PLUTONIA.WAD", doomwaddir);
 
     tntwad = malloc(strlen(doomwaddir)+16);
     sprintf(tntwad, "%s/tnt.wad", doomwaddir);
+    char* tntwad_u = malloc(strlen(doomwaddir)+16);
+    sprintf(tntwad_u, "%s/TNT.WAD", doomwaddir);
 
     // French stuff.
     doom2fwad = malloc(strlen(doomwaddir)+16);
     sprintf(doom2fwad, "%s/doom2f.wad", doomwaddir);
+    char* doom2fwad_u = malloc(strlen(doomwaddir)+16);
+    sprintf(doom2fwad_u, "%s/DOOM2F.WAD", doomwaddir);
 
     home = getenv("HOME");
     if (home)
@@ -691,11 +709,17 @@ void IdentifyVersion (void)
     if ( !access (doom2fwad,R_OK) )
     {
 	gamemode = commercial;
-	// C'est ridicule!
-	// Let's handle languages in config files, okay?
 	language = french;
 	printf("French version\n");
 	D_AddFile (doom2fwad);
+	return;
+    }
+    if ( !access (doom2fwad_u,R_OK) )
+    {
+	gamemode = commercial;
+	language = french;
+	printf("French version\n");
+	D_AddFile (doom2fwad_u);
 	return;
     }
 
@@ -705,11 +729,23 @@ void IdentifyVersion (void)
 	D_AddFile (doom2wad);
 	return;
     }
+    if ( !access (doom2wad_u,R_OK) )
+    {
+	gamemode = commercial;
+	D_AddFile (doom2wad_u);
+	return;
+    }
 
     if ( !access (plutoniawad, R_OK ) )
     {
       gamemode = commercial;
       D_AddFile (plutoniawad);
+      return;
+    }
+    if ( !access (plutoniawad_u, R_OK ) )
+    {
+      gamemode = commercial;
+      D_AddFile (plutoniawad_u);
       return;
     }
 
@@ -719,11 +755,23 @@ void IdentifyVersion (void)
       D_AddFile (tntwad);
       return;
     }
+    if ( !access ( tntwad_u, R_OK ) )
+    {
+      gamemode = commercial;
+      D_AddFile (tntwad_u);
+      return;
+    }
 
     if ( !access (doomuwad,R_OK) )
     {
       gamemode = retail;
       D_AddFile (doomuwad);
+      return;
+    }
+    if ( !access (doomuwad_u,R_OK) )
+    {
+      gamemode = retail;
+      D_AddFile (doomuwad_u);
       return;
     }
 
@@ -733,6 +781,12 @@ void IdentifyVersion (void)
       D_AddFile (doomwad);
       return;
     }
+    if ( !access (doomwad_u,R_OK) )
+    {
+      gamemode = registered;
+      D_AddFile (doomwad_u);
+      return;
+    }
 
     if ( !access (doom1wad,R_OK) )
     {
@@ -740,6 +794,41 @@ void IdentifyVersion (void)
       D_AddFile (doom1wad);
       return;
     }
+    if ( !access (doom1wad_u,R_OK) )
+    {
+      gamemode = shareware;
+      D_AddFile (doom1wad_u);
+      return;
+    }
+
+#if defined(PSP) || defined(__PSP__)
+    const char* psp_paths[] = {
+        "ms0:/PSP/GAME/HRGZDOOM/doom1.wad",
+        "ms0:/PSP/GAME/HRGZDOOM/DOOM1.WAD",
+        "ms0:/PSP/GAME/HRGZDOOM/doom.wad",
+        "ms0:/PSP/GAME/HRGZDOOM/DOOM.WAD",
+        "ms0:/PSP/GAME/HRGZDOOM/doom2.wad",
+        "ms0:/PSP/GAME/HRGZDOOM/DOOM2.WAD",
+        "ms0:/PSP/GAME/HRGZDOOM/doomu.wad",
+        "ms0:/PSP/GAME/HRGZDOOM/DOOMU.WAD"
+    };
+    for (size_t p_idx = 0; p_idx < sizeof(psp_paths)/sizeof(psp_paths[0]); p_idx++)
+    {
+        if (!access(psp_paths[p_idx], R_OK))
+        {
+            if (strstr(psp_paths[p_idx], "doom1") || strstr(psp_paths[p_idx], "DOOM1"))
+                gamemode = shareware;
+            else if (strstr(psp_paths[p_idx], "doom2") || strstr(psp_paths[p_idx], "DOOM2"))
+                gamemode = commercial;
+            else if (strstr(psp_paths[p_idx], "doomu") || strstr(psp_paths[p_idx], "DOOMU"))
+                gamemode = retail;
+            else
+                gamemode = registered;
+            D_AddFile((char*)psp_paths[p_idx]);
+            return;
+        }
+    }
+#endif
 
     printf("Game mode indeterminate.\n");
     gamemode = indetermined;

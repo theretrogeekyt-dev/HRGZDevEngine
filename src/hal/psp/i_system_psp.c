@@ -3,7 +3,7 @@
 //
 // HRGZDevEngine DOOM for PlayStation Portable (PSP)
 // System driver: Precision RTC/microsecond timing, memory allocation,
-// clean kernel exit, and error handling.
+// clean kernel exit, on-screen debug console error reporting.
 //
 // Uses the official PSPDEV SDK (https://pspdev.github.io)
 //
@@ -11,6 +11,8 @@
 
 #include <pspkernel.h>
 #include <psprtc.h>
+#include <pspdebug.h>
+#include <pspctrl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -41,28 +43,30 @@ void I_Init(void)
 
 byte* I_ZoneBase(int* size)
 {
-    // On PSP (32MB RAM on Fat, 64MB on Slim), reserve 12-16MB for DOOM heap zone
-    int mb = 14;
+    // On PSP (32MB RAM on Fat, 64MB on Slim), attempt descending zone allocations
+    int try_mb[] = { 14, 12, 10, 8, 6 };
+    int num_tries = sizeof(try_mb) / sizeof(try_mb[0]);
+
     int p = M_CheckParm("-mb");
     if (p && p < myargc - 1)
-        mb = atoi(myargv[p + 1]);
-
-    if (mb < 6) mb = 6;
-    if (mb > 24) mb = 24;
-
-    *size = mb * 1024 * 1024;
-    byte* zone = (byte*)malloc(*size);
-    if (!zone)
     {
-        // Try falling back to 8MB if 14MB is not contiguous
-        *size = 8 * 1024 * 1024;
-        zone = (byte*)malloc(*size);
-        if (!zone)
+        try_mb[0] = atoi(myargv[p + 1]);
+        if (try_mb[0] < 4) try_mb[0] = 4;
+        if (try_mb[0] > 24) try_mb[0] = 24;
+    }
+
+    for (int i = 0; i < num_tries; i++)
+    {
+        *size = try_mb[i] * 1024 * 1024;
+        byte* zone = (byte*)malloc(*size);
+        if (zone)
         {
-            I_Error("I_ZoneBase: Failed to allocate %dMB zone memory on PSP", mb);
+            return zone;
         }
     }
-    return zone;
+
+    I_Error("I_ZoneBase: Failed to allocate contiguous DOOM zone memory (tried 14MB down to 6MB)");
+    return NULL;
 }
 
 int I_GetTime(void)
@@ -113,12 +117,41 @@ void I_Error(char* error, ...)
     vsprintf(msg, error, argptr);
     va_end(argptr);
 
-    fprintf(stderr, "\n=======================================================\n");
-    fprintf(stderr, "HRGZDevEngine DOOM PSP FATAL ERROR:\n%s\n", msg);
-    fprintf(stderr, "=======================================================\n\n");
+    // Save error to log file on memory stick
+    FILE* logf = fopen("HRGZ_ERROR.TXT", "w");
+    if (logf)
+    {
+        fprintf(logf, "HRGZDevEngine DOOM PSP FATAL ERROR:\n%s\n", msg);
+        fclose(logf);
+    }
 
-    sceKernelDelayThread(3000000); // 3 seconds delay so developer/player can read error on screen
+    // Display error directly on PSP display using hardware debug screen
+    pspDebugScreenInit();
+    pspDebugScreenSetTextColor(0x000000FF); // Red
+    pspDebugScreenPrintf("\n  =======================================================\n");
+    pspDebugScreenPrintf("  HRGZDevEngine DOOM PSP - FATAL ERROR\n");
+    pspDebugScreenPrintf("  =======================================================\n\n");
+    pspDebugScreenSetTextColor(0x00FFFFFF); // White
+    pspDebugScreenPrintf("  Error: %s\n\n", msg);
+    pspDebugScreenSetTextColor(0x0000FFFF); // Yellow
+    pspDebugScreenPrintf("  If files are missing, ensure DOOM1.WAD or DOOM.WAD is in:\n");
+    pspDebugScreenPrintf("  ms0:/PSP/GAME/HRGZDOOM/\n\n");
+    pspDebugScreenSetTextColor(0x00AAAAAA); // Grey
+    pspDebugScreenPrintf("  Saved error details to HRGZ_ERROR.TXT\n");
+    pspDebugScreenPrintf("  Press (X) or (O) to exit to PSP Home Menu.\n");
+
+    // Sample controller and wait for user acknowledgment or 15-second timeout
+    SceCtrlData pad;
+    for (int i = 0; i < 900; i++)
+    {
+        sceCtrlReadBufferPositive(&pad, 1);
+        if (pad.Buttons & (PSP_CTRL_CROSS | PSP_CTRL_CIRCLE | PSP_CTRL_START))
+        {
+            break;
+        }
+        sceKernelDelayThread(16666);
+    }
+
     sceKernelExitGame();
     exit(1);
 }
-

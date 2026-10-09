@@ -30,15 +30,18 @@
 #define PSP_SCREEN_WIDTH   480
 #define PSP_SCREEN_HEIGHT  272
 #define PSP_BUF_STRIDE     512
+#define PSP_FRAME_SIZE     (PSP_BUF_STRIDE * PSP_SCREEN_HEIGHT * sizeof(uint32_t))
 
-// Uncached VRAM base address (0x44000000) avoids CPU cache flushing
-#define PSP_VRAM_UNCACHED  ((uint32_t*)0x44000000)
+// CPU writes to UNCACHED VRAM (0x44000000) to bypass CPU cache flushing
+static uint32_t* vram_cpu[2] = {
+    (uint32_t*)0x44000000,
+    (uint32_t*)(0x44000000 + PSP_FRAME_SIZE)
+};
 
-// Double buffer framebuffers in eDRAM
-// 512 * 272 * 4 = 557,056 bytes per framebuffer
-static uint32_t* vram_buffer[2] = {
-    PSP_VRAM_UNCACHED,
-    PSP_VRAM_UNCACHED + (PSP_BUF_STRIDE * PSP_SCREEN_HEIGHT)
+// Display controller hardware reads from CACHED physical VRAM (0x04000000)
+static void* vram_display[2] = {
+    (void*)0x04000000,
+    (void*)(0x04000000 + PSP_FRAME_SIZE)
 };
 static int current_buffer = 0;
 
@@ -102,16 +105,16 @@ void I_InitGraphics(void)
     sceDisplaySetMode(0, PSP_SCREEN_WIDTH, PSP_SCREEN_HEIGHT);
 
     // Clear both framebuffers to solid black
-    memset((void*)vram_buffer[0], 0, PSP_BUF_STRIDE * PSP_SCREEN_HEIGHT * sizeof(uint32_t));
-    memset((void*)vram_buffer[1], 0, PSP_BUF_STRIDE * PSP_SCREEN_HEIGHT * sizeof(uint32_t));
+    memset((void*)vram_cpu[0], 0, PSP_FRAME_SIZE);
+    memset((void*)vram_cpu[1], 0, PSP_FRAME_SIZE);
 
-    // Present the initial buffer
-    sceDisplaySetFrameBuf((void*)vram_buffer[0], PSP_BUF_STRIDE, PSP_DISPLAY_PIXEL_FORMAT_8888, PSP_DISPLAY_SETBUF_IMMEDIATE);
+    // Present initial buffer using 0x04000000 physical VRAM address
+    sceDisplaySetFrameBuf(vram_display[0], PSP_BUF_STRIDE, PSP_DISPLAY_PIXEL_FORMAT_8888, PSP_DISPLAY_SETBUF_IMMEDIATE);
     current_buffer = 0;
 
-    // Allocate DOOM refresh screens
-    screens[0] = (byte*)malloc(SCREENWIDTH * SCREENHEIGHT);
-    screens[4] = (byte*)malloc(SCREENWIDTH * SCREENHEIGHT);
+    // Allocate DOOM refresh screens if not already provided by V_Init
+    if (!screens[0]) screens[0] = (byte*)malloc(SCREENWIDTH * SCREENHEIGHT);
+    if (!screens[4]) screens[4] = (byte*)malloc(SCREENWIDTH * SCREENHEIGHT);
     if (!screens[0] || !screens[4])
     {
         I_Error("I_InitGraphics: Failed to allocate DOOM frame buffers");
@@ -135,14 +138,21 @@ void I_ShutdownGraphics(void)
 
 void I_SetPalette(byte* palette)
 {
+    if (!palette)
+        return;
+
+    int g = usegamma;
+    if (g < 0) g = 0;
+    if (g > 4) g = 4;
+
     // Convert 256 8-bit RGB triplets into 32-bit RGBA (0xAABBGGRR in little-endian Allegrex MIPS)
     for (int i = 0; i < 256; i++)
     {
-        byte r = gammatable[usegamma][*palette++];
-        byte g = gammatable[usegamma][*palette++];
-        byte b = gammatable[usegamma][*palette++];
+        byte r = gammatable[g][*palette++];
+        byte g_val = gammatable[g][*palette++];
+        byte b = gammatable[g][*palette++];
 
-        psp_palette[i] = (0xFF << 24) | ((uint32_t)b << 16) | ((uint32_t)g << 8) | (uint32_t)r;
+        psp_palette[i] = (0xFF << 24) | ((uint32_t)b << 16) | ((uint32_t)g_val << 8) | (uint32_t)r;
     }
 }
 
@@ -238,9 +248,9 @@ void I_UpdateNoBlit(void)
 
 void I_FinishUpdate(void)
 {
-    // Draw into the off-screen buffer
+    // Draw into the off-screen buffer (uncached CPU pointer)
     int draw_buf_idx = 1 - current_buffer;
-    uint32_t* dst_base = vram_buffer[draw_buf_idx];
+    uint32_t* dst_base = vram_cpu[draw_buf_idx];
 
     if (psp_scaling_mode == 0)
     {
@@ -288,8 +298,8 @@ void I_FinishUpdate(void)
     // Wait for vertical blanking to eliminate screen tearing
     sceDisplayWaitVblankStart();
 
-    // Flip framebuffer
-    sceDisplaySetFrameBuf((void*)dst_base, PSP_BUF_STRIDE, PSP_DISPLAY_PIXEL_FORMAT_8888, PSP_DISPLAY_SETBUF_IMMEDIATE);
+    // Flip framebuffer using 0x04000000 physical VRAM address with NEXTFRAME sync
+    sceDisplaySetFrameBuf(vram_display[draw_buf_idx], PSP_BUF_STRIDE, PSP_DISPLAY_PIXEL_FORMAT_8888, PSP_DISPLAY_SETBUF_NEXTFRAME);
     current_buffer = draw_buf_idx;
 
     // Frame refresh system:

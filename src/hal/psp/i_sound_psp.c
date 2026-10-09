@@ -38,7 +38,8 @@ static int music_vol = 15;
 static int AudioThread(SceSize args, void* argp)
 {
     (void)args; (void)argp;
-    static int16_t stream_buf[PSP_AUDIO_SAMPLES * 2]; // 16-bit interleaved stereo
+    // 64-byte alignment required by PSP hardware DMA and libpspaudio
+    __attribute__((aligned(64))) static int16_t stream_buf[PSP_AUDIO_SAMPLES * 2];
 
     while (audio_running)
     {
@@ -46,7 +47,19 @@ static int AudioThread(SceSize args, void* argp)
         I_Mixer_Mix(stream_buf, PSP_AUDIO_SAMPLES);
 
         // Blocking output sends samples directly to PSP DAC / headphone jack
-        sceAudioOutputBlocking(audio_channel, PSP_AUDIO_VOLUME_MAX, stream_buf);
+        if (audio_channel >= 0)
+        {
+            int ret = sceAudioOutputBlocking(audio_channel, PSP_AUDIO_VOLUME_MAX, stream_buf);
+            if (ret < 0)
+            {
+                // Fallback sleep if hardware audio output failed so we don't spin-lock
+                sceKernelDelayThread(10000);
+            }
+        }
+        else
+        {
+            sceKernelDelayThread(10000);
+        }
     }
 
     return 0;
@@ -71,9 +84,9 @@ void I_InitSound(void)
         return;
     }
 
-    // Spawn dedicated high-priority audio mixing thread
+    // Spawn dedicated audio mixing thread at priority 0x19 (peer priority with main thread 0x18)
     audio_running = true;
-    audio_thread_id = sceKernelCreateThread("doom_audio_thread", AudioThread, 0x12, 0x10000, 0, NULL);
+    audio_thread_id = sceKernelCreateThread("doom_audio_thread", AudioThread, 0x19, 0x10000, 0, NULL);
     if (audio_thread_id >= 0)
     {
         sceKernelStartThread(audio_thread_id, 0, NULL);

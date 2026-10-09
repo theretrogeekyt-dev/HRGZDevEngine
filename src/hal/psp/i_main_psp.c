@@ -23,7 +23,7 @@
 // PSP Homebrew Module Info
 PSP_MODULE_INFO("HRGZ_DOOM", 0, 1, 0);
 PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER | THREAD_ATTR_VFPU);
-PSP_HEAP_SIZE_KB(-1024); // Use all available heap minus 1MB for OS threads
+PSP_HEAP_SIZE_KB(-2048); // Reserve 2MB for OS/threads, rest for heap
 
 static int exit_request = 0;
 
@@ -73,11 +73,18 @@ int main(int argc, char **argv)
         strncpy(path, argv[0], sizeof(path) - 1);
         path[sizeof(path) - 1] = '\0';
         char *slash = strrchr(path, '/');
+        if (!slash)
+            slash = strrchr(path, '\\');
         if (slash)
         {
             *slash = '\0';
             chdir(path);
+            setenv("DOOMWADDIR", path, 1);
         }
+    }
+    else
+    {
+        setenv("DOOMWADDIR", ".", 1);
     }
 
     myargc = argc;
@@ -88,4 +95,3 @@ int main(int argc, char **argv)
 
     return 0;
 }
-
