@@ -239,7 +239,7 @@ jobs:
       - name: Cross-Compile Native PowerPC XeLL ELF (xenon.elf)
         run: |
           # Compile true 32-bit Big-Endian PowerPC executable for Xbox 360 XeLL
-          powerpc-linux-gnu-gcc -O2 -mcpu=powerpc -m32 -mbig-endian \
+          powerpc-linux-gnu-gcc -O2 -m32 -mbig-endian \
             -Wall -Wno-parentheses -Wno-unused-const-variable \
             -Wno-unused-but-set-variable -Wno-unused-variable \
             -Wno-misleading-indentation -Wno-format-overflow -Wno-unused-result \

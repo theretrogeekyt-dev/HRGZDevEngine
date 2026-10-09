@@ -185,10 +185,10 @@ Aurora is an Xbox 360 dashboard application that runs inside the official OS (`x
 #### Compiling with PowerPC Cross-Compiler:
 ```bash
 # Cross-compile for PowerPC 32-bit Big-Endian (XeLL):
-powerpc-linux-gnu-gcc -O2 -mcpu=powerpc -m32 -mbig-endian \
+powerpc-linux-gnu-gcc -O2 -m32 -mbig-endian \
   -std=c99 -DLIBXENON -D__BIG_ENDIAN__ \
   src/doom/*.c src/hal/common/*.c src/hal/xenon/*.c \
-  -Isrc/doom -Isrc/hal/common -lm -s -o build/xenon/xenon.elf
+  -Isrc/doom -Isrc/hal/common -Isrc/hal/xenon/include -lm -s -o build/xenon/xenon.elf
 ```
 
 ### 5. Automated Headless Test Suite (Any OS)
