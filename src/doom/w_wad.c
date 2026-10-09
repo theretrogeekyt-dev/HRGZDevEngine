@@ -196,9 +196,7 @@ void W_AddFile (char *filename)
 {
     wadinfo_t		header;
     lumpinfo_t*		lump_p;
-    unsigned		i;
     int			handle;
-    int			length;
     int			startlump;
     filelump_t*		fileinfo;
     filelump_t		singleinfo;
@@ -242,6 +240,17 @@ void W_AddFile (char *filename)
         singleinfo.size = LONG(filelength(handle));
         ExtractFileBase (filename, singleinfo.name);
         numlumps++;
+
+        lumpinfo = (lumpinfo_t*)realloc (lumpinfo, numlumps * sizeof(lumpinfo_t));
+        if (!lumpinfo)
+            I_Error ("Couldn't realloc lumpinfo");
+
+        lump_p = &lumpinfo[startlump];
+        storehandle = reloadname ? -1 : handle;
+        lump_p->handle = storehandle;
+        lump_p->position = LONG(fileinfo->filepos);
+        lump_p->size = LONG(fileinfo->size);
+        strncpy (lump_p->name, fileinfo->name, 8);
     }
     else 
     {
@@ -260,46 +269,42 @@ void W_AddFile (char *filename)
         }
         header.numlumps = LONG(header.numlumps);
         header.infotableofs = LONG(header.infotableofs);
-        length = header.numlumps * sizeof(filelump_t);
 
 #if defined(PSP) || defined(__PSP__)
         pspDebugScreenPrintf("  Header: %.4s, Lumps: %d\n", header.identification, header.numlumps);
 #endif
 
-        fileinfo = (filelump_t*)malloc (length);
-        if (!fileinfo)
-        {
-            I_Error ("W_AddFile: failed to allocate %d bytes for fileinfo\n", length);
-        }
-        wad_lseek (handle, header.infotableofs, WAD_SEEK_SET);
-        r = wad_read (handle, fileinfo, length);
-        if (r < length)
-        {
-            I_Error ("W_AddFile: only read %d of %d bytes for lump directory\n", r, length);
-        }
         numlumps += header.numlumps;
-    }
 
-    // Fill in lumpinfo
-    lumpinfo = (lumpinfo_t*)realloc (lumpinfo, numlumps * sizeof(lumpinfo_t));
-    if (!lumpinfo)
-        I_Error ("Couldn't realloc lumpinfo");
+        // Reallocate lumpinfo before directory streaming
+        lumpinfo = (lumpinfo_t*)realloc (lumpinfo, numlumps * sizeof(lumpinfo_t));
+        if (!lumpinfo)
+            I_Error ("Couldn't realloc lumpinfo");
 
-    lump_p = &lumpinfo[startlump];
-    storehandle = reloadname ? -1 : handle;
+        lump_p = &lumpinfo[startlump];
+        storehandle = reloadname ? -1 : handle;
 
-    filelump_t* fi = fileinfo;
-    for (i = startlump; i < numlumps; i++, lump_p++, fi++)
-    {
-        lump_p->handle = storehandle;
-        lump_p->position = LONG(fi->filepos);
-        lump_p->size = LONG(fi->size);
-        strncpy (lump_p->name, fi->name, 8);
-    }
-
-    if (!strcmpi (filename+strlen(filename)-3 , "wad" ))
-    {
-        free (fileinfo);
+        wad_lseek (handle, header.infotableofs, WAD_SEEK_SET);
+        filelump_t batch[64];
+        int remaining = header.numlumps;
+        while (remaining > 0)
+        {
+            int to_read = (remaining > 64) ? 64 : remaining;
+            int bytes = to_read * sizeof(filelump_t);
+            r = wad_read (handle, batch, bytes);
+            if (r < bytes)
+            {
+                I_Error ("W_AddFile: only read %d of %d bytes for lump directory\n", r, bytes);
+            }
+            for (int k = 0; k < to_read; k++, lump_p++)
+            {
+                lump_p->handle = storehandle;
+                lump_p->position = LONG(batch[k].filepos);
+                lump_p->size = LONG(batch[k].size);
+                strncpy (lump_p->name, batch[k].name, 8);
+            }
+            remaining -= to_read;
+        }
     }
 
     if (reloadname)
@@ -319,10 +324,7 @@ void W_Reload (void)
     wadinfo_t		header;
     int			lumpcount;
     lumpinfo_t*		lump_p;
-    unsigned		i;
     int			handle;
-    int			length;
-    filelump_t*		fileinfo;
 	
     if (!reloadname)
 	return;
@@ -334,29 +336,33 @@ void W_Reload (void)
     wad_read (handle, &header, sizeof(header));
     lumpcount = LONG(header.numlumps);
     header.infotableofs = LONG(header.infotableofs);
-    length = lumpcount*sizeof(filelump_t);
-    fileinfo = (filelump_t*)malloc (length);
-    if (!fileinfo)
-        I_Error ("W_Reload: failed to allocate %d bytes", length);
     wad_lseek (handle, header.infotableofs, WAD_SEEK_SET);
-    wad_read (handle, fileinfo, length);
     
     // Fill in lumpinfo
     lump_p = &lumpinfo[reloadlump];
 	
-    filelump_t* fi = fileinfo;
-    for (i=reloadlump ;
-	 i<reloadlump+lumpcount ;
-	 i++,lump_p++, fi++)
+    filelump_t batch[64];
+    int remaining = lumpcount;
+    int cur_idx = reloadlump;
+    while (remaining > 0)
     {
-	if (lumpcache[i])
-	    Z_Free (lumpcache[i]);
-
-	lump_p->position = LONG(fi->filepos);
-	lump_p->size = LONG(fi->size);
+        int to_read = (remaining > 64) ? 64 : remaining;
+        int bytes = to_read * sizeof(filelump_t);
+        int r = wad_read (handle, batch, bytes);
+        if (r < bytes)
+        {
+            I_Error ("W_Reload: only read %d of %d bytes for lump directory\n", r, bytes);
+        }
+        for (int k = 0; k < to_read; k++, lump_p++, cur_idx++)
+        {
+            if (lumpcache[cur_idx])
+                Z_Free (lumpcache[cur_idx]);
+            lump_p->position = LONG(batch[k].filepos);
+            lump_p->size = LONG(batch[k].size);
+        }
+        remaining -= to_read;
     }
-	
-    free (fileinfo);
+
     wad_close (handle);
 }
 
@@ -383,7 +389,7 @@ void W_InitMultipleFiles (char** filenames)
     numlumps = 0;
 
     // will be realloced as lumps are added
-    lumpinfo = malloc(1);	
+    lumpinfo = NULL;	
 
     for ( ; *filenames ; filenames++)
 	W_AddFile (*filenames);

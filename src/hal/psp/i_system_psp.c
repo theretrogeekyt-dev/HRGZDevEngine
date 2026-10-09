@@ -44,8 +44,9 @@ void I_Init(void)
 
 byte* I_ZoneBase(int* size)
 {
-    // On PSP (32MB RAM on Fat, 64MB on Slim), attempt descending zone allocations
-    int try_mb[] = { 12, 10, 8, 6, 4 };
+    // On PSP (32MB RAM on Fat, 64MB on Slim), attempt descending zone allocations.
+    // 8MB is optimal for all DOOM IWADs while leaving ample heap for lumpinfo, audio, and lumps.
+    int try_mb[] = { 8, 6, 5, 4 };
     int num_tries = sizeof(try_mb) / sizeof(try_mb[0]);
 
     int p = M_CheckParm("-mb");
@@ -67,7 +68,7 @@ byte* I_ZoneBase(int* size)
         }
     }
 
-    I_Error("I_ZoneBase: Failed to allocate contiguous DOOM zone memory (tried 12MB down to 4MB)");
+    I_Error("I_ZoneBase: Failed to allocate contiguous DOOM zone memory (tried 8MB down to 4MB)");
     return NULL;
 }
 
