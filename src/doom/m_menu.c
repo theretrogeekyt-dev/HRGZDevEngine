@@ -2911,9 +2911,21 @@ boolean M_Responder (event_t* ev)
     // Take care of any messages that need input
     if (messageToPrint)
     {
-	if (messageNeedsInput == true &&
-	    !(ch == ' ' || ch == 'n' || ch == 'y' || ch == KEY_ESCAPE))
-	    return false;
+	if (messageNeedsInput == true)
+	{
+	    if (ch == 'y' || ch == 'Y' || ch == KEY_ENTER || ch == ' ')
+	    {
+		ch = 'y'; // Normalize Confirm (Enter / Cross) and Use (Space / Square) to 'y' (YES)
+	    }
+	    else if (ch == 'n' || ch == 'N' || ch == KEY_ESCAPE)
+	    {
+		ch = 'n'; // Normalize Cancel / Back / Escape / Circle to 'n' (NO)
+	    }
+	    else
+	    {
+		return false;
+	    }
+	}
 		
 	menuactive = messageLastMenuActive;
 	messageToPrint = 0;

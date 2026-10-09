@@ -179,7 +179,7 @@ void I_Gamepad_Update(const gamepad_state_t* state)
     uint32_t pressed  = curr_btn & ~s_prev_buttons;
     s_prev_buttons    = curr_btn;
 
-    int in_menu = (menuactive || gamestate != GS_LEVEL || demoplayback);
+    int in_menu = menuactive;
     int current_tic = I_GetTime();
 
     //-------------------------------------------------------------------------
@@ -221,14 +221,14 @@ void I_Gamepad_Update(const gamepad_state_t* state)
             s_menu_last_key = 0;
         }
 
-        // Confirm (A / Cross)
-        if (pressed & PAD_BTN_A)
+        // Confirm / Select / Use / Yes (A / Cross or X / Square)
+        if (pressed & (PAD_BTN_A | PAD_BTN_X))
         {
             PostKeyStroke(KEY_ENTER);
         }
 
-        // Cancel / Back (B / Circle)
-        if (pressed & PAD_BTN_B)
+        // Cancel / Back / No (B / Circle or Y / Triangle)
+        if (pressed & (PAD_BTN_B | PAD_BTN_Y))
         {
             PostKeyStroke(KEY_ESCAPE);
         }

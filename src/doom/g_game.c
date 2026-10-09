@@ -553,6 +553,12 @@ boolean G_Responder (event_t* ev)
 	    return true;	// automap ate it 
     } 
 	 
+    if (gamestate == GS_INTERMISSION)
+    {
+	if (WI_Responder (ev))
+	    return true;	// intermission ate the event
+    }
+
     if (gamestate == GS_FINALE) 
     { 
 	if (F_Responder (ev)) 

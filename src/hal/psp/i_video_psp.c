@@ -170,7 +170,7 @@ void I_StartTic(void)
     memset(&state, 0, sizeof(state));
     state.connected = 1;
 
-    int in_menu = (menuactive || gamestate != GS_LEVEL || demoplayback);
+    int in_menu = menuactive;
 
     if (in_menu)
     {
@@ -191,10 +191,10 @@ void I_StartTic(void)
         if (nx < -0.45f) state.buttons |= PAD_BTN_DPAD_LF;
         else if (nx > 0.45f) state.buttons |= PAD_BTN_DPAD_RT;
 
-        // Cross: Confirm / Select
-        if (pad.Buttons & PSP_CTRL_CROSS)     state.buttons |= PAD_BTN_A;
+        // Cross or Square: Confirm / Select / Use / Yes
+        if (pad.Buttons & (PSP_CTRL_CROSS | PSP_CTRL_SQUARE)) state.buttons |= PAD_BTN_A;
 
-        // Circle or Triangle: Back / Cancel
+        // Circle or Triangle: Back / Cancel / No
         if (pad.Buttons & (PSP_CTRL_CIRCLE | PSP_CTRL_TRIANGLE)) state.buttons |= PAD_BTN_B;
 
         // Start: Close menu / Resume

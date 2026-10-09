@@ -414,6 +414,11 @@ void WI_slamBackground(void)
 //  because of timing issues in netgames.
 boolean WI_Responder(event_t* ev)
 {
+    if (ev->type == ev_keydown)
+    {
+        acceleratestage = 1;
+        return true;
+    }
     return false;
 }
 
