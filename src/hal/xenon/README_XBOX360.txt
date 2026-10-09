@@ -1,85 +1,82 @@
 ===============================================================================
-HRGZDevEngine DOOM — Xbox 360 Edition
-Optimized for the Xbox 360 "Peer Pressure" Softmod Exploit & XeLL
+HRGZDevEngine DOOM — Xbox 360 Edition (Native Standalone Title)
+Optimized for the Xbox 360 "Peer Pressure" Softmod Exploit, Aurora & XeXMenu
 ===============================================================================
 
-This port of DOOM is tailored specifically for the Xbox 360 console running
-the persistent "Peer Pressure" softmod (by Grimdoomer) or XeLL bare-metal loader.
+This is a true standalone native Xbox 360 title package of DOOM.
+It runs directly under the Xbox 360 OS (xboxkrnl.exe) with Direct3D 9,
+XInput gamepad controls, and XAudio2.
+
+NO XeLL reboot required!
+NO console reset required!
+NO text consoles or Linux environments!
+Launches directly with 1 click from Aurora Dashboard or XeXMenu!
 
 Project Repository:
 https://github.com/theretrogeekyt-dev/HRGZDevEngine
 
-Peer Pressure Softmod:
+Peer Pressure Softmod by Grimdoomer:
 https://github.com/grimdoomer/Xbox360PeerPressure
 
 
 -------------------------------------------------------------------------------
-HOW TO RUN ON AURORA & PEER PRESSURE SOFTMOD
+HOW TO RUN IN AURORA DASHBOARD & XEXMENU
 -------------------------------------------------------------------------------
 
-METHOD 1: Direct 1-Click Launch from Aurora / XeXMenu (default.xex)
-This package includes `default.xex` pre-configured to launch directly from the
-Aurora dashboard or XeXMenu:
-1. Copy this entire folder (containing `default.xex`, `xenon.elf`, and `doom1.wad`)
-   to your console's hard drive or USB drive:
-   - `Hdd1:\Games\DOOM\` or `Usb0:\DOOM\`
-2. Open Aurora Dashboard or XeXMenu.
-3. Open the DOOM folder and click `default.xex` (or select DOOM from your Aurora
-   games library).
-4. `default.xex` launches smoothly without errors, jumps directly to the Xenon
-   loader, and boots DOOM into 720p 16:9 true widescreen!
+1. Extract this entire zip into a folder named "DOOM".
+2. Copy the "DOOM" folder to your Xbox 360:
+   - Internal Hard Drive:  Hdd1:\Games\DOOM\
+   - USB Flash Drive:      Usb0:\DOOM\   (or Usb1:\DOOM\)
+3. In Aurora Dashboard:
+   - Aurora will automatically detect DOOM in your games list and display
+     the cover box art!
+   - Highlight DOOM and press (A) on "default.xex".
+4. DOOM launches immediately in 720p 16:9 widescreen with full twin-stick
+   Xbox 360 controller support!
 
-METHOD 2: XeLL Direct Boot via Console Eject Button
-If you prefer booting without going through Aurora:
-1. Copy `xenon.elf` and `doom1.wad` directly to the ROOT of a FAT32 USB drive
-   (or to `Hdd1:\PeerPressure\OtherOS\` on console HDD).
-2. Plug the USB flash drive into any Xbox 360 USB port.
-3. Turn on the console by pressing the console EJECT BUTTON.
-4. Peer Pressure boots into XeLL, detects `xenon.elf`, and starts DOOM immediately!
+If launching via XeXMenu:
+- Navigate to Hdd1:\Games\DOOM\ (or Usb0:\DOOM\)
+- Press (A) on default.xex to start.
 
 
 -------------------------------------------------------------------------------
-FEATURES
+PACKAGE CONTENTS
 -------------------------------------------------------------------------------
-- 16:9 True Widescreen: Native 720p (1280x720) output matching modern HDTVs.
-- Bare-Metal Xenon Execution: Direct hardware control, zero OS overhead.
-- Twin-Stick Gamepad Controls: 1:1 mapping for wireless and USB Xbox 360 controllers.
-- PowerPC 50 MHz Hardware TimeBase Timer: Rock-solid 35 Hz playsim tic rate.
-- 32 MB Zone Memory: Leverages Xbox 360's 512 MB GDDR3 unified RAM.
-- Multi-drive IWAD Autodiscovery: Automatically searches USB (`uda:`, `usb:`),
-  internal HDD (`hdd:`, `sda:`, `Hdd1:\PeerPressure\OtherOS\`), and game root.
-- Frame Refresh System: Double-buffered tear-free rendering.
+- default.xex         : Native Xbox 360 title executable (Aurora launch target).
+- prboom.xex          : Native Xbox 360 DOOM engine executable (Direct3D 9 / XInput).
+- doom1.wad           : Pre-installed DOOM Shareware IWAD (Full commercial doom.wad,
+                        doom2.wad, tnt.wad, plutonia.wad can also be added).
+- system/prboom.wad   : Engine lump data.
+- roms/prboom/        : Scanned game directory (place custom WADs here).
+- assets/             : 720p HD UI artwork, fonts, and bilinear/CRT shaders.
+- cover_aurora.jpg    : Box art cover for Aurora dashboard library.
+- retropad.ini        : Preconfigured Xbox 360 controller mapping.
+- salvia.cfg          : Widescreen 720p 16:9 engine configuration.
+- xenon.elf           : (Optional) Bare-metal PowerPC ELF for XeLL users.
 
 
 -------------------------------------------------------------------------------
-CONTROLLER LAYOUT (Xbox 360 Wireless / Wired Controller)
+CONTROLS (Xbox 360 Wireless / Wired Controller)
 -------------------------------------------------------------------------------
-- Left Thumbstick: Move & Strafe (Smooth analog)
-- Right Thumbstick: Turn & Look (Analog look)
-- Right Trigger (RT): Attack / Fire Weapon
-- Left Trigger (LT): Sprint / Speed
-- Left Bumper (LB): Previous Weapon
-- Right Bumper (RB): Next Weapon
-- A Button: Use / Open Doors / Activate Switches / Menu Select
-- B Button: Cancel / Sprint / Menu Back
-- X Button: Use / Open
-- Y Button: Automap
-- D-Pad: Move / Menu Navigation
-- Start Button: Options Menu / Pause
-- Back / View: Toggle Automap
-- Left Stick Click (L3): Toggle Always-Run
-- Right Stick Click (R3): 180° Quick-Turn
+- Left Thumbstick     : Move and Strafe
+- Right Thumbstick    : Turn and Aim
+- Right Trigger (RT)  : Attack / Fire Weapon
+- Left Trigger (LT)   : Sprint / Speed
+- Right Bumper (RB)   : Next Weapon
+- Left Bumper (LB)    : Previous Weapon
+- A Button            : Open / Use / Select
+- B Button            : Cancel / Back
+- X Button            : Use / Activate
+- Y Button            : Toggle Automap
+- D-Pad               : Weapon selection / Menu navigation
+- Start Button        : Game Menu / Pause
+- Back Button         : Automap toggle
+- Xbox Guide Button   : Standard Xbox 360 Guide overlay / Return to Dashboard
 
 
 -------------------------------------------------------------------------------
-SUPPORTED CONSOLE REVISIONS
+ADDING CUSTOM WADS (DOOM 2, Final DOOM, Sigil, etc.)
 -------------------------------------------------------------------------------
-All consoles supported by the Peer Pressure exploit:
-- Xenon
-- Zephyr
-- Falcon
-- Jasper
-- Trinity
-(Note: Corona and Winchester revisions have hardware Southbridge fixes preventing
-the exploit from running).
+Simply drop any standard DOOM IWAD or PWAD (e.g. doom2.wad, tnt.wad, plutonia.wad)
+into the `roms/prboom/` folder. They will automatically appear in your game list!
 ===============================================================================

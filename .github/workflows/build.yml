@@ -270,14 +270,38 @@ jobs:
         run: |
           test -f build/xenon/xenon.elf || { echo "ERROR: xenon.elf not found"; exit 1; }
           test -f src/hal/xenon/default.xex || { echo "ERROR: default.xex not found"; exit 1; }
+          test -f src/hal/xenon/prboom.xex || { echo "ERROR: prboom.xex not found"; exit 1; }
+          test -f src/hal/xenon/prboom.wad || { echo "ERROR: prboom.wad not found"; exit 1; }
 
-          cp src/hal/xenon/default.xex build/xenon/default.xex
-          cp src/hal/xenon/README_XBOX360.txt build/xenon/README_XBOX360.txt
-          cp src/hal/xenon/Makefile.xenon build/xenon/Makefile.xenon
-          cp doom1.wad build/xenon/doom1.wad
+          mkdir -p build/package_xbox360/system
+          mkdir -p build/package_xbox360/roms/prboom
+          mkdir -p build/package_xbox360/config
+          mkdir -p build/package_xbox360/assets
 
-          cd build/xenon
-          zip -r ../../HRGZDevEngine-DOOM-Xbox360.zip default.xex xenon.elf doom1.wad README_XBOX360.txt Makefile.xenon
+          # Native Standalone XEX Executables & Configs
+          cp src/hal/xenon/default.xex build/package_xbox360/default.xex
+          cp src/hal/xenon/prboom.xex build/package_xbox360/prboom.xex
+          cp src/hal/xenon/salvia.cfg build/package_xbox360/salvia.cfg
+          cp src/hal/xenon/retropad.ini build/package_xbox360/retropad.ini
+          cp src/hal/xenon/cover_aurora.jpg build/package_xbox360/cover_aurora.jpg
+          cp src/hal/xenon/README_XBOX360.txt build/package_xbox360/README_XBOX360.txt
+
+          # Engine data lumps, configs, and assets
+          cp src/hal/xenon/prboom.wad build/package_xbox360/system/prboom.wad
+          cp src/hal/xenon/config/prboom.cfg build/package_xbox360/config/prboom.cfg
+          cp -r src/hal/xenon/assets/* build/package_xbox360/assets/
+
+          # IWADs
+          cp doom1.wad build/package_xbox360/doom1.wad
+          cp doom1.wad build/package_xbox360/roms/prboom/doom1.wad
+
+          # Include PowerPC XeLL ELF as optional alternative
+          cp build/xenon/xenon.elf build/package_xbox360/xenon.elf
+
+          cd build/package_xbox360
+          zip -r ../../HRGZDevEngine-DOOM-Xbox360.zip .
+          cd ../..
+          test -f HRGZDevEngine-DOOM-Xbox360.zip || { echo "ERROR: Zip packaging failed"; exit 1; }
 
       - name: Upload Xbox 360 Artifact
         uses: actions/upload-artifact@v4
@@ -345,7 +369,7 @@ jobs:
           | 🍏 **macOS** | [`HRGZDevEngine-DOOM-macOS.zip`](https://github.com/${{ github.repository }}/releases/download/latest/HRGZDevEngine-DOOM-macOS.zip) | Metal HW Accel + Cocoa + AudioToolbox |
           | 🪟 **Windows** | [`HRGZDevEngine-DOOM-Windows.zip`](https://github.com/${{ github.repository }}/releases/download/latest/HRGZDevEngine-DOOM-Windows.zip) | Win32 + OpenGL HW Accel + WinMM + Winsock2 |
           | 🐧 **Linux** | [`HRGZDevEngine-DOOM-Linux-SDL2.zip`](https://github.com/${{ github.repository }}/releases/download/latest/HRGZDevEngine-DOOM-Linux-SDL2.zip) | SDL2 Driver + Software Audio Mixer |
-          | 🎮 **Xbox 360** | [`HRGZDevEngine-DOOM-Xbox360.zip`](https://github.com/${{ github.repository }}/releases/download/latest/HRGZDevEngine-DOOM-Xbox360.zip) | "Peer Pressure" Softmod (XeLL 720p 16:9 PowerPC ELF) |
+          | 🎮 **Xbox 360** | [`HRGZDevEngine-DOOM-Xbox360.zip`](https://github.com/${{ github.repository }}/releases/download/latest/HRGZDevEngine-DOOM-Xbox360.zip) | Standalone Native XEX (Direct3D 9 / XInput) + XeLL ELF |
 
           ---
 
@@ -363,7 +387,7 @@ jobs:
 
           ### ✨ Key Features
           - **Hardware-Accelerated Rendering**: Native Apple Metal (macOS) and OpenGL (Windows) streaming presentation
-          - **Xbox 360 Homebrew Support**: Dedicated HAL for Grimdoomer's "Peer Pressure" persistent softmod exploit & XeLL
+          - **Xbox 360 Standalone Homebrew**: Native Direct3D 9 & XInput standalone XEX executable for Aurora / XeXMenu dashboards without XeLL reboot (plus bare-metal XeLL PowerPC ELF)
           - **16:9 True Widescreen**: 426x200 sub-pixel resolution scaled to 720p with extended horizontal field of view
           - **Frame Refresh & Clearing System**: Double-buffered frame clearing and tear-free vertical sync
           - **Integrated IP Multiplayer**: UDP lobby system, peer-to-peer matchmaking, and in-game server hosting
