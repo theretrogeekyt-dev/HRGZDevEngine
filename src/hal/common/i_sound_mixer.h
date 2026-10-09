@@ -32,6 +32,7 @@ typedef struct
 } mixer_channel_t;
 
 void I_Mixer_Init(void);
+void I_Mixer_InitRate(int sample_rate);
 void I_Mixer_Shutdown(void);
 int  I_Mixer_StartSound(const uint8_t* sfx_data, size_t sfx_len, int vol, int sep, int pitch, int priority);
 void I_Mixer_StopSound(int handle);

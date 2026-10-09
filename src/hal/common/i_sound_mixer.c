@@ -6,11 +6,19 @@
 static mixer_channel_t channels[MIXER_MAX_CHANNELS];
 static int next_handle = 1;
 static int master_sfx_volume = 15; // 0..15
+static int current_output_rate = MIXER_SAMPLE_RATE;
 
-void I_Mixer_Init(void)
+void I_Mixer_InitRate(int sample_rate)
 {
     memset(channels, 0, sizeof(channels));
     next_handle = 1;
+    if (sample_rate <= 0) sample_rate = MIXER_SAMPLE_RATE;
+    current_output_rate = sample_rate;
+}
+
+void I_Mixer_Init(void)
+{
+    I_Mixer_InitRate(MIXER_SAMPLE_RATE);
 }
 
 void I_Mixer_Shutdown(void)
@@ -82,7 +90,7 @@ int I_Mixer_StartSound(const uint8_t* sfx_data, size_t sfx_len, int vol, int sep
     ch->position = 0;
 
     // Compute playback step (16.16 fixed point)
-    uint32_t step = (uint32_t)(((uint64_t)sample_rate << 16) / MIXER_SAMPLE_RATE);
+    uint32_t step = (uint32_t)(((uint64_t)sample_rate << 16) / current_output_rate);
     if (pitch != 128 && pitch > 0)
     {
         step = (step * (uint32_t)pitch) / 128;

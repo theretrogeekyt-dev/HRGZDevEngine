@@ -25,7 +25,7 @@
 #include "m_argv.h"
 #include "../common/i_sound_mixer.h"
 
-#define PSP_AUDIO_SAMPLES 512
+#define PSP_AUDIO_SAMPLES 1024
 
 static int audio_channel = -1;
 static SceUID audio_thread_id = -1;
@@ -43,7 +43,7 @@ static int AudioThread(SceSize args, void* argp)
 
     while (audio_running)
     {
-        // Mix next 512 stereo samples (11.6ms of audio at 44100Hz)
+        // Mix next 1024 stereo samples (23.2ms of audio at 44100Hz)
         I_Mixer_Mix(stream_buf, PSP_AUDIO_SAMPLES);
 
         // Blocking output sends samples directly to PSP DAC / headphone jack
@@ -74,7 +74,8 @@ void I_InitSound(void)
         return;
     }
 
-    I_Mixer_Init();
+    // Initialize software mixer at Sony PSP hardware native 44,100 Hz
+    I_Mixer_InitRate(44100);
 
     // Reserve hardware audio channel
     audio_channel = sceAudioChReserve(PSP_AUDIO_NEXT_CHANNEL, PSP_AUDIO_SAMPLES, PSP_AUDIO_FORMAT_STEREO);
@@ -84,9 +85,9 @@ void I_InitSound(void)
         return;
     }
 
-    // Spawn dedicated audio mixing thread at priority 0x19 (peer priority with main thread 0x18)
+    // Spawn dedicated audio mixing thread at high priority 0x12 (above main thread 0x18 to prevent pops)
     audio_running = true;
-    audio_thread_id = sceKernelCreateThread("doom_audio_thread", AudioThread, 0x19, 0x10000, 0, NULL);
+    audio_thread_id = sceKernelCreateThread("doom_audio_thread", AudioThread, 0x12, 0x10000, 0, NULL);
     if (audio_thread_id >= 0)
     {
         sceKernelStartThread(audio_thread_id, 0, NULL);
@@ -140,7 +141,7 @@ int I_GetSfxLumpNum(sfxinfo_t* sfxinfo)
 {
     char name[9];
     sprintf(name, "ds%s", sfxinfo->name);
-    return W_GetNumForName(name);
+    return W_CheckNumForName(name);
 }
 
 int I_StartSound(int id, int vol, int sep, int pitch, int priority)
@@ -151,6 +152,9 @@ int I_StartSound(int id, int vol, int sep, int pitch, int priority)
     sfxinfo_t* sfx = &S_sfx[id];
     if (sfx->lumpnum < 0)
         sfx->lumpnum = I_GetSfxLumpNum(sfx);
+
+    if (sfx->lumpnum < 0)
+        return 0;
 
     int sfx_len = W_LumpLength(sfx->lumpnum);
     const uint8_t* sfx_data = (const uint8_t*)W_CacheLumpNum(sfx->lumpnum, PU_CACHE);

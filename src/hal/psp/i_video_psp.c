@@ -166,80 +166,124 @@ void I_StartTic(void)
     SceCtrlData pad;
     sceCtrlReadBufferPositive(&pad, 1);
 
-    // Populate common unified gamepad state
     gamepad_state_t state;
     memset(&state, 0, sizeof(state));
     state.connected = 1;
 
-    // Analog Nub: normalize 0..255 (center ~128) to [-1.0f, +1.0f]
-    float nx = ((float)pad.Lx - 128.0f) / 128.0f;
-    float ny = ((float)pad.Ly - 128.0f) / 128.0f;
+    int in_menu = (menuactive || gamestate != GS_LEVEL || demoplayback);
 
-    // Deadzone filter for worn PSP analog nubs
-    if (nx > -0.18f && nx < 0.18f) nx = 0.0f;
-    if (ny > -0.18f && ny < 0.18f) ny = 0.0f;
-
-    state.left_stick_x = nx;  // Turn / strafe
-    state.left_stick_y = -ny; // Invert Y: pushing nub forward is -ny, mapped to +forward
-
-    // Digital Buttons Mapping to Unified Gamepad
-    if (pad.Buttons & PSP_CTRL_CROSS)     state.buttons |= PAD_BTN_A;     // Fire / Confirm
-    if (pad.Buttons & PSP_CTRL_CIRCLE)    state.buttons |= PAD_BTN_B;     // Cancel / Sprint
-    if (pad.Buttons & PSP_CTRL_SQUARE)    state.buttons |= PAD_BTN_X;     // Use / Open Door
-    if (pad.Buttons & PSP_CTRL_TRIANGLE)  state.buttons |= PAD_BTN_Y;     // Automap
-    if (pad.Buttons & PSP_CTRL_LTRIGGER)  state.buttons |= PAD_BTN_LB;    // Strafe Left / Prev Weapon
-    if (pad.Buttons & PSP_CTRL_RTRIGGER)
+    if (in_menu)
     {
-        state.buttons |= PAD_BTN_RB;    // Next Weapon
-        state.right_trigger = 1.0f;     // Primary Fire via Right Shoulder
+        // -------------------------------------------------------------
+        // Menu Navigation Mode:
+        // Direct digital input with single event dispatch and debounce
+        // -------------------------------------------------------------
+        if (pad.Buttons & PSP_CTRL_UP)        state.buttons |= PAD_BTN_DPAD_UP;
+        if (pad.Buttons & PSP_CTRL_DOWN)      state.buttons |= PAD_BTN_DPAD_DN;
+        if (pad.Buttons & PSP_CTRL_LEFT)      state.buttons |= PAD_BTN_DPAD_LF;
+        if (pad.Buttons & PSP_CTRL_RIGHT)     state.buttons |= PAD_BTN_DPAD_RT;
+
+        // Also allow Nub in menus
+        float ny = ((float)pad.Ly - 128.0f) / 128.0f;
+        float nx = ((float)pad.Lx - 128.0f) / 128.0f;
+        if (ny < -0.45f) state.buttons |= PAD_BTN_DPAD_UP;
+        else if (ny > 0.45f) state.buttons |= PAD_BTN_DPAD_DN;
+        if (nx < -0.45f) state.buttons |= PAD_BTN_DPAD_LF;
+        else if (nx > 0.45f) state.buttons |= PAD_BTN_DPAD_RT;
+
+        // Cross: Confirm / Select
+        if (pad.Buttons & PSP_CTRL_CROSS)     state.buttons |= PAD_BTN_A;
+
+        // Circle or Triangle: Back / Cancel
+        if (pad.Buttons & (PSP_CTRL_CIRCLE | PSP_CTRL_TRIANGLE)) state.buttons |= PAD_BTN_B;
+
+        // Start: Close menu / Resume
+        if (pad.Buttons & PSP_CTRL_START)     state.buttons |= PAD_BTN_START;
     }
-    if (pad.Buttons & PSP_CTRL_START)     state.buttons |= PAD_BTN_START; // Menu / Pause
-    if (pad.Buttons & PSP_CTRL_SELECT)    state.buttons |= PAD_BTN_BACK;  // Automap Toggle
-    if (pad.Buttons & PSP_CTRL_UP)        state.buttons |= PAD_BTN_DPAD_UP;
-    if (pad.Buttons & PSP_CTRL_DOWN)      state.buttons |= PAD_BTN_DPAD_DN;
-    if (pad.Buttons & PSP_CTRL_LEFT)      state.buttons |= PAD_BTN_DPAD_LF;
-    if (pad.Buttons & PSP_CTRL_RIGHT)     state.buttons |= PAD_BTN_DPAD_RT;
-
-    // Dispatch button events to DOOM engine (handles menus & text navigation)
-    uint32_t pressed = pad.Buttons & ~last_buttons;
-    uint32_t released = last_buttons & ~pad.Buttons;
-
-    struct { uint32_t psp_btn; int doom_key; } keymap[] = {
-        { PSP_CTRL_START,    KEY_ESCAPE },
-        { PSP_CTRL_SELECT,   KEY_TAB },
-        { PSP_CTRL_UP,       KEY_UPARROW },
-        { PSP_CTRL_DOWN,     KEY_DOWNARROW },
-        { PSP_CTRL_LEFT,     KEY_LEFTARROW },
-        { PSP_CTRL_RIGHT,    KEY_RIGHTARROW },
-        { PSP_CTRL_CROSS,    KEY_ENTER },
-        { PSP_CTRL_TRIANGLE, KEY_ESCAPE },
-        { PSP_CTRL_SQUARE,   ' ' },
-        { 0, 0 }
-    };
-
-    for (int i = 0; keymap[i].psp_btn != 0; i++)
+    else
     {
-        if (pressed & keymap[i].psp_btn)
+        // -------------------------------------------------------------
+        // In-Game Playsim Mode:
+        // -------------------------------------------------------------
+
+        // 1. Analog Nub (center ~128) -> [-1.0f, +1.0f]
+        float nx = ((float)pad.Lx - 128.0f) / 128.0f;
+        float ny = ((float)pad.Ly - 128.0f) / 128.0f;
+
+        // Deadzone filter for worn PSP analog nubs
+        if (nx > -0.18f && nx < 0.18f) nx = 0.0f;
+        if (ny > -0.18f && ny < 0.18f) ny = 0.0f;
+
+        // Forward / Backward movement from Nub Y
+        state.left_stick_y = -ny;
+
+        // Strafe Modifier: Holding L-Trigger switches horizontal input from Turning to Strafing
+        boolean strafe_mode = (pad.Buttons & PSP_CTRL_LTRIGGER) != 0;
+
+        if (strafe_mode)
         {
-            event_t ev;
-            ev.type = ev_keydown;
-            ev.data1 = keymap[i].doom_key;
-            ev.data2 = ev.data3 = 0;
-            D_PostEvent(&ev);
+            state.left_stick_x = nx;
+            state.right_stick_x = 0.0f;
         }
-        if (released & keymap[i].psp_btn)
+        else
         {
-            event_t ev;
-            ev.type = ev_keyup;
-            ev.data1 = keymap[i].doom_key;
-            ev.data2 = ev.data3 = 0;
-            D_PostEvent(&ev);
+            state.left_stick_x = 0.0f;
+            state.right_stick_x = nx; // Smooth analog turning / aiming
+        }
+
+        // 2. D-Pad Movement (classic alternative to analog nub)
+        if (pad.Buttons & PSP_CTRL_UP)    state.left_stick_y = 1.0f;
+        if (pad.Buttons & PSP_CTRL_DOWN)  state.left_stick_y = -1.0f;
+        if (pad.Buttons & PSP_CTRL_LEFT)
+        {
+            if (strafe_mode) state.left_stick_x = -1.0f;
+            else             state.right_stick_x = -1.0f;
+        }
+        if (pad.Buttons & PSP_CTRL_RIGHT)
+        {
+            if (strafe_mode) state.left_stick_x = 1.0f;
+            else             state.right_stick_x = 1.0f;
+        }
+
+        // 3. Actions & Weapons
+        // Primary Fire: R-Trigger OR Cross button
+        if (pad.Buttons & (PSP_CTRL_RTRIGGER | PSP_CTRL_CROSS))
+        {
+            state.right_trigger = 1.0f;
+        }
+
+        // Action / Use / Open Door / Switch: Square button
+        if (pad.Buttons & PSP_CTRL_SQUARE)
+        {
+            state.buttons |= PAD_BTN_X;
+        }
+
+        // Weapon Cycling: Triangle = Next Weapon, Circle = Previous Weapon
+        if (pad.Buttons & PSP_CTRL_TRIANGLE)
+        {
+            state.buttons |= PAD_BTN_RB;
+        }
+        if (pad.Buttons & PSP_CTRL_CIRCLE)
+        {
+            state.buttons |= PAD_BTN_LB;
+        }
+
+        // Automap: Select button
+        if (pad.Buttons & PSP_CTRL_SELECT)
+        {
+            state.buttons |= PAD_BTN_BACK;
+        }
+
+        // Options / Pause: Start button
+        if (pad.Buttons & PSP_CTRL_START)
+        {
+            state.buttons |= PAD_BTN_START;
         }
     }
 
     last_buttons = pad.Buttons;
 
-    // Update unified gamepad subsystem for playsim ticcmd generation
+    // Update unified gamepad subsystem for playsim ticcmd generation & menu navigation
     I_Gamepad_Update(&state);
 }
 
