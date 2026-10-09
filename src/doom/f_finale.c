@@ -621,6 +621,9 @@ F_DrawPatchCol
     byte*	dest;
     byte*	desttop;
     int		count;
+
+    if (!patch || col < 0 || col >= SHORT(patch->width))
+        return;
 	
     column = (column_t *)((byte *)patch + LONG(patch->columnofs[col]));
     desttop = screens[0]+x;
@@ -668,10 +671,11 @@ void F_BunnyScroll (void)
 		
     for ( x=0 ; x<SCREENWIDTH ; x++)
     {
-	if (x+scrolled < 320)
-	    F_DrawPatchCol (x, p1, x+scrolled);
+        int pcol = (x + scrolled) % 640;
+	if (pcol < 320)
+	    F_DrawPatchCol (x, p1, pcol);
 	else
-	    F_DrawPatchCol (x, p2, x+scrolled - 320);		
+	    F_DrawPatchCol (x, p2, pcol - 320);		
     }
 	
     if (finalecount < 1130)

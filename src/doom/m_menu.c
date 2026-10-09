@@ -1234,14 +1234,14 @@ void M_DrawSave(void)
     V_DrawPatchDirect (72 + mx, 28, 0, W_CacheLumpName("M_SAVEG", PU_CACHE));
     for (i = 0;i < load_end; i++)
     {
-	M_DrawSaveLoadBorder(LoadDef.x,LoadDef.y+LINEHEIGHT*i);
-	M_WriteText(LoadDef.x,LoadDef.y+LINEHEIGHT*i,savegamestrings[i]);
+	M_DrawSaveLoadBorder(SaveDef.x,SaveDef.y+LINEHEIGHT*i);
+	M_WriteText(SaveDef.x,SaveDef.y+LINEHEIGHT*i,savegamestrings[i]);
     }
 	
     if (saveStringEnter)
     {
 	i = M_StringWidth(savegamestrings[saveSlot]);
-	M_WriteText(LoadDef.x + i,LoadDef.y+LINEHEIGHT*saveSlot,"_");
+	M_WriteText(SaveDef.x + i,SaveDef.y+LINEHEIGHT*saveSlot,"_");
     }
 }
 
@@ -2119,6 +2119,19 @@ void M_DrawDisplay(void)
     M_WriteText(apply_x + (apply_w - vw) / 2, y, buf);
 
     // Bottom Hints (Centered horizontally)
+#ifdef PSP
+    strcpy(buf, "USE D-PAD TO CHANGE SETTINGS");
+    vw = M_StringWidth(buf);
+    M_WriteText((SCREENWIDTH - vw) / 2, 138, buf);
+
+    strcpy(buf, "CROSS OR SQUARE TO APPLY");
+    vw = M_StringWidth(buf);
+    M_WriteText((SCREENWIDTH - vw) / 2, 148, buf);
+
+    strcpy(buf, "CIRCLE OR TRIANGLE TO RETURN");
+    vw = M_StringWidth(buf);
+    M_WriteText((SCREENWIDTH - vw) / 2, 158, buf);
+#else
     strcpy(buf, "USE ARROWS TO CHANGE SETTINGS");
     vw = M_StringWidth(buf);
     M_WriteText((SCREENWIDTH - vw) / 2, 138, buf);
@@ -2130,6 +2143,7 @@ void M_DrawDisplay(void)
     strcpy(buf, "PRESS ESC TO RETURN");
     vw = M_StringWidth(buf);
     M_WriteText((SCREENWIDTH - vw) / 2, 158, buf);
+#endif
 }
 
 
@@ -3173,7 +3187,7 @@ void M_Drawer (void)
     static short	y;
     short		i;
     short		max;
-    char		string[40];
+    char		string[256];
     int			start;
 
     inhelpscreens = false;
@@ -3197,18 +3211,26 @@ void M_Drawer (void)
 	y = 100 - M_StringHeight(messageString)/2;
 	while(*(messageString+start))
 	{
-	    for (i = 0;i < strlen(messageString+start);i++)
+	    int len = (int)strlen(messageString+start);
+	    for (i = 0; i < len; i++)
+	    {
 		if (*(messageString+start+i) == '\n')
 		{
-		    memset(string,0,40);
-		    strncpy(string,messageString+start,i);
+		    int copylen = (i < (int)sizeof(string) - 1) ? i : (int)sizeof(string) - 1;
+		    memset(string, 0, sizeof(string));
+		    strncpy(string, messageString+start, copylen);
+		    string[copylen] = '\0';
 		    start += i+1;
 		    break;
 		}
+	    }
 				
-	    if (i == strlen(messageString+start))
+	    if (i == len)
 	    {
-		strcpy(string,messageString+start);
+		int copylen = (i < (int)sizeof(string) - 1) ? i : (int)sizeof(string) - 1;
+		memset(string, 0, sizeof(string));
+		strncpy(string, messageString+start, copylen);
+		string[copylen] = '\0';
 		start += i;
 	    }
 				

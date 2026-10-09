@@ -22,6 +22,7 @@
 #define __HU_STUFF_H__
 
 #include "d_event.h"
+#include "doomdef.h"
 
 
 //
@@ -36,7 +37,7 @@
 #define HU_BROADCAST	5
 
 #define HU_MSGREFRESH	KEY_ENTER
-#define HU_MSGX		0
+#define HU_MSGX		((SCREENWIDTH - 320) / 2)
 #define HU_MSGY		0
 #define HU_MSGWIDTH	64	// in characters
 #define HU_MSGHEIGHT	1	// in lines

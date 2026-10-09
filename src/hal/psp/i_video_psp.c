@@ -43,12 +43,17 @@ static int current_buffer = 0;
 // 256-color 32-bit RGBA palette lookup table
 static uint32_t psp_palette[256];
 
-// Scaling look-up tables (precomputed 320x200 -> 480x272)
+// Scaling look-up tables
 static uint16_t scale_lut_x[PSP_SCREEN_WIDTH];
 static uint16_t scale_lut_y[PSP_SCREEN_HEIGHT];
+static uint16_t scale_lut_43_x[362];
 static boolean lut_initialized = false;
 
-// Display aspect scaling mode: 0 = 480x272 Full Widescreen, 1 = 426x200 Centered Pixel-Perfect
+// Display aspect scaling mode:
+// 0 = 480x272 Full Widescreen 16:9
+// 1 = 426x200 Pixel-Perfect 1:1 Centered
+// 2 = 362x272 Classic 4:3 Aspect Fit
+// 3 = 320x200 Retro 1:1 Centered
 static int psp_scaling_mode = 0;
 
 // Previous controller state to detect button edges for menu events
@@ -61,13 +66,13 @@ int display_height = PSP_SCREEN_HEIGHT;
 boolean display_fullscreen = true;
 
 const display_resolution_t display_resolutions[NUM_DISPLAY_RESOLUTIONS] = {
-    { 480, 272, "480x272 (Full Widescreen)" },
-    { 426, 200, "426x200 (Pixel-Perfect)"   },
-    { 480, 272, "480x272 (Preset 2)"        },
-    { 480, 272, "480x272 (Preset 3)"        },
-    { 480, 272, "480x272 (Preset 4)"        },
-    { 480, 272, "480x272 (Preset 5)"        },
-    { 480, 272, "480x272 (Preset 6)"        }
+    { 480, 272, "480x272 (Widescreen 16:9)" },
+    { 426, 200, "426x200 (Pixel-Perfect 1:1)" },
+    { 362, 272, "362x272 (Classic 4:3 Fit)" },
+    { 320, 200, "320x200 (Retro 1:1)"         },
+    { 480, 272, "480x272 (Full Stretch)"      },
+    { 426, 200, "426x200 (Wide Pillarbox)"    },
+    { 362, 272, "362x272 (Aspect 4:3)"        }
 };
 
 static void InitScalingLUT(void)
@@ -87,6 +92,14 @@ static void InitScalingLUT(void)
         int sy = (y * SCREENHEIGHT) / PSP_SCREEN_HEIGHT;
         if (sy >= SCREENHEIGHT) sy = SCREENHEIGHT - 1;
         scale_lut_y[y] = (uint16_t)sy;
+    }
+
+    int safe_x = (SCREENWIDTH - 320) / 2;
+    for (int x = 0; x < 362; x++)
+    {
+        int sx = safe_x + (x * 320) / 362;
+        if (sx >= SCREENWIDTH) sx = SCREENWIDTH - 1;
+        scale_lut_43_x[x] = (uint16_t)sx;
     }
 
     lut_initialized = true;
@@ -327,10 +340,10 @@ void I_FinishUpdate(void)
             }
         }
     }
-    else
+    else if (psp_scaling_mode == 1)
     {
-        // 320x200 Pixel-Perfect Centered (with 80px pillarboxes and 36px letterboxes)
-        const int off_x = (PSP_SCREEN_WIDTH - SCREENWIDTH) / 2;  // 80
+        // 426x200 Pixel-Perfect Centered (with 27px pillarboxes and 36px letterboxes)
+        const int off_x = (PSP_SCREEN_WIDTH - SCREENWIDTH) / 2;  // 27
         const int off_y = (PSP_SCREEN_HEIGHT - SCREENHEIGHT) / 2; // 36
 
         // Clear top and bottom letterbox borders
@@ -342,12 +355,105 @@ void I_FinishUpdate(void)
             const byte* src_row = screens[0] + y * SCREENWIDTH;
             uint32_t* dst_row = dst_base + (y + off_y) * PSP_BUF_STRIDE;
 
-            // Clear left and right pillarboxes with fast memset
+            // Clear left and right pillarboxes
             memset(dst_row, 0, off_x * sizeof(uint32_t));
             memset(dst_row + off_x + SCREENWIDTH, 0, (PSP_SCREEN_WIDTH - (off_x + SCREENWIDTH)) * sizeof(uint32_t));
 
-            // Copy 320 DOOM pixels directly (8x unrolled)
-            for (int x = 0; x < SCREENWIDTH; x += 8)
+            // Copy 426 DOOM pixels: 424 via 8x unrolled loop + 2 remainder pixels
+            int x = 0;
+            for (; x <= SCREENWIDTH - 8; x += 8)
+            {
+                uint32_t p0 = psp_palette[src_row[x + 0]];
+                uint32_t p1 = psp_palette[src_row[x + 1]];
+                uint32_t p2 = psp_palette[src_row[x + 2]];
+                uint32_t p3 = psp_palette[src_row[x + 3]];
+                uint32_t p4 = psp_palette[src_row[x + 4]];
+                uint32_t p5 = psp_palette[src_row[x + 5]];
+                uint32_t p6 = psp_palette[src_row[x + 6]];
+                uint32_t p7 = psp_palette[src_row[x + 7]];
+
+                dst_row[off_x + x + 0] = p0;
+                dst_row[off_x + x + 1] = p1;
+                dst_row[off_x + x + 2] = p2;
+                dst_row[off_x + x + 3] = p3;
+                dst_row[off_x + x + 4] = p4;
+                dst_row[off_x + x + 5] = p5;
+                dst_row[off_x + x + 6] = p6;
+                dst_row[off_x + x + 7] = p7;
+            }
+            while (x < SCREENWIDTH)
+            {
+                dst_row[off_x + x] = psp_palette[src_row[x]];
+                x++;
+            }
+        }
+    }
+    else if (psp_scaling_mode == 2)
+    {
+        // Classic 4:3 Fit (362x272 centered with 59px pillarboxes)
+        const int fit_w = 362;
+        const int off_x = (PSP_SCREEN_WIDTH - fit_w) / 2; // 59
+
+        for (int y = 0; y < PSP_SCREEN_HEIGHT; y++)
+        {
+            const byte* src_row = screens[0] + scale_lut_y[y] * SCREENWIDTH;
+            uint32_t* dst_row = dst_base + y * PSP_BUF_STRIDE;
+
+            // Clear left and right pillarboxes
+            memset(dst_row, 0, off_x * sizeof(uint32_t));
+            memset(dst_row + off_x + fit_w, 0, (PSP_SCREEN_WIDTH - (off_x + fit_w)) * sizeof(uint32_t));
+
+            int x = 0;
+            for (; x <= fit_w - 8; x += 8)
+            {
+                uint32_t p0 = psp_palette[src_row[scale_lut_43_x[x + 0]]];
+                uint32_t p1 = psp_palette[src_row[scale_lut_43_x[x + 1]]];
+                uint32_t p2 = psp_palette[src_row[scale_lut_43_x[x + 2]]];
+                uint32_t p3 = psp_palette[src_row[scale_lut_43_x[x + 3]]];
+                uint32_t p4 = psp_palette[src_row[scale_lut_43_x[x + 4]]];
+                uint32_t p5 = psp_palette[src_row[scale_lut_43_x[x + 5]]];
+                uint32_t p6 = psp_palette[src_row[scale_lut_43_x[x + 6]]];
+                uint32_t p7 = psp_palette[src_row[scale_lut_43_x[x + 7]]];
+
+                dst_row[off_x + x + 0] = p0;
+                dst_row[off_x + x + 1] = p1;
+                dst_row[off_x + x + 2] = p2;
+                dst_row[off_x + x + 3] = p3;
+                dst_row[off_x + x + 4] = p4;
+                dst_row[off_x + x + 5] = p5;
+                dst_row[off_x + x + 6] = p6;
+                dst_row[off_x + x + 7] = p7;
+            }
+            while (x < fit_w)
+            {
+                dst_row[off_x + x] = psp_palette[src_row[scale_lut_43_x[x]]];
+                x++;
+            }
+        }
+    }
+    else // psp_scaling_mode == 3 (Retro 1:1)
+    {
+        // Retro 1:1 (320x200 unscaled centered with 80px pillarboxes and 36px letterboxes)
+        const int retro_w = 320;
+        const int off_x = (PSP_SCREEN_WIDTH - retro_w) / 2;       // 80
+        const int off_y = (PSP_SCREEN_HEIGHT - SCREENHEIGHT) / 2; // 36
+        const int safe_x = (SCREENWIDTH - retro_w) / 2;          // 53
+
+        // Clear top and bottom letterbox borders
+        memset(dst_base, 0, off_y * PSP_BUF_STRIDE * sizeof(uint32_t));
+        memset(dst_base + (off_y + SCREENHEIGHT) * PSP_BUF_STRIDE, 0, (PSP_SCREEN_HEIGHT - (off_y + SCREENHEIGHT)) * PSP_BUF_STRIDE * sizeof(uint32_t));
+
+        for (int y = 0; y < SCREENHEIGHT; y++)
+        {
+            const byte* src_row = screens[0] + y * SCREENWIDTH + safe_x;
+            uint32_t* dst_row = dst_base + (y + off_y) * PSP_BUF_STRIDE;
+
+            // Clear left and right pillarboxes
+            memset(dst_row, 0, off_x * sizeof(uint32_t));
+            memset(dst_row + off_x + retro_w, 0, (PSP_SCREEN_WIDTH - (off_x + retro_w)) * sizeof(uint32_t));
+
+            // Copy 320 pixels directly (320 is divisible by 8)
+            for (int x = 0; x < retro_w; x += 8)
             {
                 uint32_t p0 = psp_palette[src_row[x + 0]];
                 uint32_t p1 = psp_palette[src_row[x + 1]];
@@ -426,12 +532,21 @@ void I_SetResolutionIndex(int index, boolean fullscreen)
 {
     (void)fullscreen;
     current_resolution_index = index;
-    psp_scaling_mode = (index == 1) ? 1 : 0;
+    if (index == 0 || index == 4)
+        psp_scaling_mode = 0;
+    else if (index == 1 || index == 5)
+        psp_scaling_mode = 1;
+    else if (index == 2 || index == 6)
+        psp_scaling_mode = 2;
+    else if (index == 3)
+        psp_scaling_mode = 3;
+    else
+        psp_scaling_mode = 0;
 }
 
 void I_ToggleFullscreen(void)
 {
-    psp_scaling_mode = 1 - psp_scaling_mode;
+    psp_scaling_mode = (psp_scaling_mode == 0) ? 1 : 0;
     current_resolution_index = psp_scaling_mode;
 }
 

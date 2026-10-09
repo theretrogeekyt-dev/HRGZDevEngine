@@ -51,7 +51,7 @@ rcsid[] = "$Id: hu_stuff.c,v 1.4 1997/02/03 16:47:52 b1 Exp $";
 #define HU_TITLEP	(mapnamesp[gamemap-1])
 #define HU_TITLET	(mapnamest[gamemap-1])
 #define HU_TITLEHEIGHT	1
-#define HU_TITLEX	0
+#define HU_TITLEX	((SCREENWIDTH - 320) / 2)
 #define HU_TITLEY	(167 - SHORT(hu_font[0]->height))
 
 #define HU_INPUTTOGGLE	't'
