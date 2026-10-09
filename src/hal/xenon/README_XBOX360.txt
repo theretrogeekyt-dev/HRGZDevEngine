@@ -14,38 +14,28 @@ https://github.com/grimdoomer/Xbox360PeerPressure
 
 
 -------------------------------------------------------------------------------
-WHY DID AURORA SAY "UNABLE TO OPEN THE FILE"?
--------------------------------------------------------------------------------
-Aurora is a Dashboard application running inside the Xbox 360 OS (xboxkrnl.exe).
-Dashboards strictly require native Xbox Executables (.xex).
-
-LibXenon homebrew applications like DOOM are BARE-METAL executables (`xenon.elf`)
-compiled for the Xenon PowerPC processor to take direct, uninhibited control of
-the hardware (720p 16:9 framebuffer, audio DAC, USB controllers).
-
-Bare-metal homebrew runs via XeLL (Xenon Linux Loader), NOT directly inside Aurora!
-
-
--------------------------------------------------------------------------------
-HOW TO RUN ON PEER PRESSURE SOFTMOD
+HOW TO RUN ON AURORA & PEER PRESSURE SOFTMOD
 -------------------------------------------------------------------------------
 
-METHOD 1: XeLL Boot via Console Eject Button (Recommended & Direct)
-1. Format a USB flash drive to FAT32.
-2. Copy `xenon.elf` and your IWAD (`doom1.wad` or `doom2.wad`) directly to the
-   ROOT of the USB drive (or to `Hdd1:\PeerPressure\OtherOS\` on console HDD).
-3. Plug the USB flash drive into any Xbox 360 USB port.
-4. Turn on the console by pressing the EJECT BUTTON (instead of the power button).
-5. Peer Pressure will boot into XeLL, detect `xenon.elf` on your USB drive, and
-   immediately start DOOM in 720p 16:9 true widescreen!
+METHOD 1: Direct 1-Click Launch from Aurora / XeXMenu (default.xex)
+This package includes `default.xex` pre-configured to launch directly from the
+Aurora dashboard or XeXMenu:
+1. Copy this entire folder (containing `default.xex`, `xenon.elf`, and `doom1.wad`)
+   to your console's hard drive or USB drive:
+   - `Hdd1:\Games\DOOM\` or `Usb0:\DOOM\`
+2. Open Aurora Dashboard or XeXMenu.
+3. Open the DOOM folder and click `default.xex` (or select DOOM from your Aurora
+   games library).
+4. `default.xex` launches smoothly without errors, jumps directly to the Xenon
+   loader, and boots DOOM into 720p 16:9 true widescreen!
 
-METHOD 2: Launching XeLL from Aurora / Dashboard (Software Shortcut)
-If you are already inside Aurora and don't want to get up to press the Eject button:
-1. Place `xenon.elf` and `doom1.wad` on the root of your USB drive.
-2. Use the popular homebrew shortcut utility `XellLaunch` (available in the Xbox
-   homebrew community / SoftmodExtras).
-3. Launch `XellLaunch` from Aurora—it soft-reboots the console straight into XeLL,
-   which then loads `xenon.elf`!
+METHOD 2: XeLL Direct Boot via Console Eject Button
+If you prefer booting without going through Aurora:
+1. Copy `xenon.elf` and `doom1.wad` directly to the ROOT of a FAT32 USB drive
+   (or to `Hdd1:\PeerPressure\OtherOS\` on console HDD).
+2. Plug the USB flash drive into any Xbox 360 USB port.
+3. Turn on the console by pressing the console EJECT BUTTON.
+4. Peer Pressure boots into XeLL, detects `xenon.elf`, and starts DOOM immediately!
 
 
 -------------------------------------------------------------------------------

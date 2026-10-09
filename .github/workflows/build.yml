@@ -262,12 +262,13 @@ jobs:
 
       - name: Package Xbox 360 Release Zip
         run: |
+          cp src/hal/xenon/default.xex build/xenon/default.xex
           cp src/hal/xenon/README_XBOX360.txt build/xenon/README_XBOX360.txt
           cp src/hal/xenon/Makefile.xenon build/xenon/Makefile.xenon
           cp doom1.wad build/xenon/doom1.wad
 
           cd build/xenon
-          zip -r ../../HRGZDevEngine-DOOM-Xbox360.zip xenon.elf doom1.wad README_XBOX360.txt Makefile.xenon
+          zip -r ../../HRGZDevEngine-DOOM-Xbox360.zip default.xex xenon.elf doom1.wad README_XBOX360.txt Makefile.xenon
 
       - name: Upload Xbox 360 Artifact
         uses: actions/upload-artifact@v4

@@ -169,18 +169,15 @@ gcc -O2 -std=c99 \
 ### 4. Xbox 360 Homebrew ("Peer Pressure" Softmod via XeLL)
 Xbox 360 bare-metal homebrew applications are built as **PowerPC ELF** binaries (`xenon.elf`) that run under **XeLL** (the Xenon Linux Loader), taking direct uninhibited control of the Xenon PowerPC CPU, 720p 16:9 framebuffer, audio DAC, and USB controllers.
 
-#### Why does Aurora say "Unable to open the file"?
-Aurora is an Xbox 360 dashboard application that runs inside the official OS (`xboxkrnl.exe`). Dashboards strictly require native Xbox Executables (`.xex`). Bare-metal homebrew like `xenon.elf` runs **outside** the dashboard directly on the hardware via XeLL!
-
 #### How to Play on Xbox 360 (Peer Pressure Softmod):
-1. **Booting via the Console Eject Button (Recommended)**:
-   - Format a USB drive to FAT32.
-   - Copy `xenon.elf` and your IWAD (`doom1.wad` or `doom2.wad`) directly to the **ROOT** of the USB drive (or to `Hdd1:\PeerPressure\OtherOS\` on console HDD).
-   - Plug the USB drive into your console.
-   - Turn on the console by pressing the **EJECT BUTTON** (not the power button).
-   - Peer Pressure will boot XeLL, auto-detect `xenon.elf`, and launch DOOM in 720p 16:9 immediately!
-2. **Booting from Aurora via XeLL Shortcut**:
-   - If you are already inside Aurora and don't want to get up to press the Eject button, use the standard community homebrew utility `XellLaunch` (available in SoftmodExtras / Xbox 360 homebrew tools) to soft-reboot the console into XeLL from Aurora.
+1. **Direct Launch from Aurora Dashboard / XeXMenu (`default.xex`)**:
+   - The release package includes `default.xex` pre-configured to launch directly from the Aurora dashboard.
+   - Copy the folder containing `default.xex`, `xenon.elf`, and `doom1.wad` into your console games or apps folder (e.g. `Hdd1:\Games\DOOM\` or `Usb0:\DOOM\`).
+   - In Aurora, open the DOOM folder and click `default.xex` (or launch DOOM from your Aurora game list). It launches seamlessly into DOOM 720p 16:9!
+2. **Direct Hardware Boot via the Console Eject Button (`xenon.elf`)**:
+   - Copy `xenon.elf` and `doom1.wad` directly to the **ROOT** of a FAT32 USB drive (or to `Hdd1:\PeerPressure\OtherOS\` on console HDD).
+   - Turn on the console by pressing the **EJECT BUTTON**.
+   - Peer Pressure boots directly into XeLL, auto-detects `xenon.elf`, and launches DOOM immediately!
 
 #### Compiling with PowerPC Cross-Compiler:
 ```bash
