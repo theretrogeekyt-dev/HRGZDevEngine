@@ -588,10 +588,19 @@ void I_FinishUpdate(void)
     if (!screens[0] || !hdc_main)
         return;
 
-    // Convert 8-bit paletted DOOM screen to 32-bit framebuffer
-    for (int i = 0; i < SCREENWIDTH * SCREENHEIGHT; i++)
+    // Convert 8-bit paletted DOOM screen to 32-bit framebuffer (8x unrolled)
+    const byte* src = screens[0];
+    const int total = SCREENWIDTH * SCREENHEIGHT;
+    for (int i = 0; i < total; i += 8)
     {
-        argb_framebuffer[i] = argb_palette[screens[0][i]];
+        argb_framebuffer[i + 0] = argb_palette[src[i + 0]];
+        argb_framebuffer[i + 1] = argb_palette[src[i + 1]];
+        argb_framebuffer[i + 2] = argb_palette[src[i + 2]];
+        argb_framebuffer[i + 3] = argb_palette[src[i + 3]];
+        argb_framebuffer[i + 4] = argb_palette[src[i + 4]];
+        argb_framebuffer[i + 5] = argb_palette[src[i + 5]];
+        argb_framebuffer[i + 6] = argb_palette[src[i + 6]];
+        argb_framebuffer[i + 7] = argb_palette[src[i + 7]];
     }
 
 #if defined(_WIN32)

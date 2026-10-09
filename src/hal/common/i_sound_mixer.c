@@ -167,14 +167,42 @@ void I_Mixer_Mix(int16_t* output_buffer, int samples_to_mix)
 
     if (master_sfx_volume == 0) return;
 
+    // Collect active channels and pre-scale volume factors once per buffer
+    mixer_channel_t* active_chans[MIXER_MAX_CHANNELS];
+    int32_t pre_vol_l[MIXER_MAX_CHANNELS];
+    int32_t pre_vol_r[MIXER_MAX_CHANNELS];
+    int num_active = 0;
+
+    for (int c = 0; c < MIXER_MAX_CHANNELS; c++)
+    {
+        mixer_channel_t* ch = &channels[c];
+        if (ch->active)
+        {
+            if ((ch->position >> 16) >= ch->length)
+            {
+                ch->active = false;
+            }
+            else
+            {
+                active_chans[num_active] = ch;
+                pre_vol_l[num_active] = (int32_t)ch->vol_left * master_sfx_volume;
+                pre_vol_r[num_active] = (int32_t)ch->vol_right * master_sfx_volume;
+                num_active++;
+            }
+        }
+    }
+
+    if (num_active == 0)
+        return;
+
     for (int s = 0; s < samples_to_mix; s++)
     {
         int32_t left_acc = 0;
         int32_t right_acc = 0;
 
-        for (int c = 0; c < MIXER_MAX_CHANNELS; c++)
+        for (int c = 0; c < num_active; c++)
         {
-            mixer_channel_t* ch = &channels[c];
+            mixer_channel_t* ch = active_chans[c];
             if (!ch->active) continue;
 
             uint32_t sample_idx = ch->position >> 16;
@@ -187,8 +215,8 @@ void I_Mixer_Mix(int16_t* output_buffer, int samples_to_mix)
             // Convert unsigned 8-bit sample [0..255] (128 = 0) to signed [-128..127]
             int32_t sample = (int32_t)ch->data[sample_idx] - 128;
 
-            left_acc  += sample * ch->vol_left * master_sfx_volume;
-            right_acc += sample * ch->vol_right * master_sfx_volume;
+            left_acc  += sample * pre_vol_l[c];
+            right_acc += sample * pre_vol_r[c];
 
             ch->position += ch->step;
         }
@@ -214,13 +242,39 @@ void I_Mixer_Mix8(uint8_t* output_buffer, int samples_to_mix)
 
     if (master_sfx_volume == 0) return;
 
+    mixer_channel_t* active_chans[MIXER_MAX_CHANNELS];
+    int32_t pre_vol[MIXER_MAX_CHANNELS];
+    int num_active = 0;
+
+    for (int c = 0; c < MIXER_MAX_CHANNELS; c++)
+    {
+        mixer_channel_t* ch = &channels[c];
+        if (ch->active)
+        {
+            if ((ch->position >> 16) >= ch->length)
+            {
+                ch->active = false;
+            }
+            else
+            {
+                active_chans[num_active] = ch;
+                int vol = (ch->vol_left + ch->vol_right) / 2;
+                pre_vol[num_active] = (int32_t)vol * master_sfx_volume;
+                num_active++;
+            }
+        }
+    }
+
+    if (num_active == 0)
+        return;
+
     for (int s = 0; s < samples_to_mix; s++)
     {
         int32_t acc = 0;
 
-        for (int c = 0; c < MIXER_MAX_CHANNELS; c++)
+        for (int c = 0; c < num_active; c++)
         {
-            mixer_channel_t* ch = &channels[c];
+            mixer_channel_t* ch = active_chans[c];
             if (!ch->active) continue;
 
             uint32_t sample_idx = ch->position >> 16;
@@ -231,8 +285,7 @@ void I_Mixer_Mix8(uint8_t* output_buffer, int samples_to_mix)
             }
 
             int32_t sample = (int32_t)ch->data[sample_idx] - 128;
-            int vol = (ch->vol_left + ch->vol_right) / 2;
-            acc += (sample * vol * master_sfx_volume);
+            acc += sample * pre_vol[c];
 
             ch->position += ch->step;
         }

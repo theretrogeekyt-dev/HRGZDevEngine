@@ -797,9 +797,19 @@ void I_FinishUpdate(void)
     if (!graphics_inited || !screens[0])
         return;
 
-    for (int i = 0; i < SCREENWIDTH * SCREENHEIGHT; i++)
+    // Fast 8x unrolled palette expansion to 32-bit RGBA
+    const byte* src = screens[0];
+    const int total = SCREENWIDTH * SCREENHEIGHT;
+    for (int i = 0; i < total; i += 8)
     {
-        rgba_framebuffer[i] = rgba_palette[screens[0][i]];
+        rgba_framebuffer[i + 0] = rgba_palette[src[i + 0]];
+        rgba_framebuffer[i + 1] = rgba_palette[src[i + 1]];
+        rgba_framebuffer[i + 2] = rgba_palette[src[i + 2]];
+        rgba_framebuffer[i + 3] = rgba_palette[src[i + 3]];
+        rgba_framebuffer[i + 4] = rgba_palette[src[i + 4]];
+        rgba_framebuffer[i + 5] = rgba_palette[src[i + 5]];
+        rgba_framebuffer[i + 6] = rgba_palette[src[i + 6]];
+        rgba_framebuffer[i + 7] = rgba_palette[src[i + 7]];
     }
 
     if (metal_initialized)

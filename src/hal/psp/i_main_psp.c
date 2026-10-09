@@ -60,12 +60,16 @@ static int SetupCallbacks(void)
 
 int main(int argc, char **argv)
 {
+    // Maximize PSP hardware clock performance (333 MHz CPU, 333 MHz PLL, 166 MHz Bus)
+    scePowerSetClockFrequency(333, 333, 166);
+
     // Initialize debug screen immediately
     pspDebugScreenInit();
 
     pspDebugScreenSetTextColor(0xFFFFFFFF);
     pspDebugScreenPrintf("==================================================\n");
     pspDebugScreenPrintf(" HRGZDevEngine DOOM PSP (v%d.%d)\n", VERSION / 100, VERSION % 100);
+    pspDebugScreenPrintf(" CPU: %d MHz / Bus: %d MHz\n", scePowerGetCpuClockFrequencyInt(), scePowerGetBusClockFrequencyInt());
     pspDebugScreenPrintf("==================================================\n\n");
 
     // Initialize callbacks so the user can exit to the PSP XMB

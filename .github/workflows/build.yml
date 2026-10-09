@@ -25,7 +25,7 @@ jobs:
       - name: Build macOS DOOM Executable
         run: |
           mkdir -p build/mac
-          clang -O2 -Wall -Wno-parentheses -Wno-unused-const-variable \
+          clang -O3 -fomit-frame-pointer -Wall -Wno-parentheses -Wno-unused-const-variable \
             -Wno-unused-but-set-variable -Wno-unused-variable -Wno-unknown-warning-option \
             -std=c99 \
             src/doom/*.c src/hal/common/*.c src/hal/mac/*.c src/hal/mac/*.m \
@@ -107,7 +107,7 @@ jobs:
         shell: msys2 {0}
         run: |
           mkdir -p build/win
-          gcc -O2 -Wall -Wno-parentheses -Wno-unused-const-variable \
+          gcc -O3 -fomit-frame-pointer -Wall -Wno-parentheses -Wno-unused-const-variable \
             -Wno-unused-but-set-variable -Wno-unused-variable \
             -std=c99 \
             src/doom/*.c src/hal/common/*.c src/hal/win32/*.c \
@@ -148,7 +148,7 @@ jobs:
       - name: Build Headless Test Runner
         run: |
           mkdir -p build/test
-          gcc -O2 -Wall -Wno-parentheses -Wno-unused-const-variable \
+          gcc -O3 -fomit-frame-pointer -Wall -Wno-parentheses -Wno-unused-const-variable \
             -Wno-unused-but-set-variable -Wno-unused-variable \
             -std=c99 \
             src/doom/*.c src/hal/common/*.c src/hal/test/*.c \
@@ -178,7 +178,7 @@ jobs:
       - name: Build Linux SDL2 DOOM Executable
         run: |
           mkdir -p build/linux
-          gcc -O2 -Wall -Wno-parentheses -Wno-unused-const-variable \
+          gcc -O3 -fomit-frame-pointer -Wall -Wno-parentheses -Wno-unused-const-variable \
             -Wno-unused-but-set-variable -Wno-unused-variable \
             -std=c99 \
             src/doom/*.c src/hal/common/*.c src/hal/sdl/*.c \

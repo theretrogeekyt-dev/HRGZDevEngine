@@ -43,9 +43,9 @@ static int current_buffer = 0;
 // 256-color 32-bit RGBA palette lookup table
 static uint32_t psp_palette[256];
 
-// Scaling look-up tables (precomputed 426x200 -> 480x272)
-static int scale_lut_x[PSP_SCREEN_WIDTH];
-static int scale_lut_y[PSP_SCREEN_HEIGHT];
+// Scaling look-up tables (precomputed 320x200 -> 480x272)
+static uint16_t scale_lut_x[PSP_SCREEN_WIDTH];
+static uint16_t scale_lut_y[PSP_SCREEN_HEIGHT];
 static boolean lut_initialized = false;
 
 // Display aspect scaling mode: 0 = 480x272 Full Widescreen, 1 = 426x200 Centered Pixel-Perfect
@@ -79,14 +79,14 @@ static void InitScalingLUT(void)
     {
         int sx = (x * SCREENWIDTH) / PSP_SCREEN_WIDTH;
         if (sx >= SCREENWIDTH) sx = SCREENWIDTH - 1;
-        scale_lut_x[x] = sx;
+        scale_lut_x[x] = (uint16_t)sx;
     }
 
     for (int y = 0; y < PSP_SCREEN_HEIGHT; y++)
     {
         int sy = (y * SCREENHEIGHT) / PSP_SCREEN_HEIGHT;
         if (sy >= SCREENHEIGHT) sy = SCREENHEIGHT - 1;
-        scale_lut_y[y] = sy;
+        scale_lut_y[y] = (uint16_t)sy;
     }
 
     lut_initialized = true;
@@ -299,22 +299,38 @@ void I_FinishUpdate(void)
 
     if (psp_scaling_mode == 0)
     {
-        // Full Widescreen 480x272 Stretch (authentic edge-to-edge 16:9 on PSP display)
+        // Full Widescreen 480x272 Stretch (8x unrolled for Allegrex burst writes to uncached VRAM)
         for (int y = 0; y < PSP_SCREEN_HEIGHT; y++)
         {
             const byte* src_row = screens[0] + scale_lut_y[y] * SCREENWIDTH;
             uint32_t* dst_row = dst_base + y * PSP_BUF_STRIDE;
 
-            for (int x = 0; x < PSP_SCREEN_WIDTH; x++)
+            for (int x = 0; x < PSP_SCREEN_WIDTH; x += 8)
             {
-                dst_row[x] = psp_palette[src_row[scale_lut_x[x]]];
+                uint32_t p0 = psp_palette[src_row[scale_lut_x[x + 0]]];
+                uint32_t p1 = psp_palette[src_row[scale_lut_x[x + 1]]];
+                uint32_t p2 = psp_palette[src_row[scale_lut_x[x + 2]]];
+                uint32_t p3 = psp_palette[src_row[scale_lut_x[x + 3]]];
+                uint32_t p4 = psp_palette[src_row[scale_lut_x[x + 4]]];
+                uint32_t p5 = psp_palette[src_row[scale_lut_x[x + 5]]];
+                uint32_t p6 = psp_palette[src_row[scale_lut_x[x + 6]]];
+                uint32_t p7 = psp_palette[src_row[scale_lut_x[x + 7]]];
+
+                dst_row[x + 0] = p0;
+                dst_row[x + 1] = p1;
+                dst_row[x + 2] = p2;
+                dst_row[x + 3] = p3;
+                dst_row[x + 4] = p4;
+                dst_row[x + 5] = p5;
+                dst_row[x + 6] = p6;
+                dst_row[x + 7] = p7;
             }
         }
     }
     else
     {
-        // 426x200 Pixel-Perfect Centered (with 27px horizontal and 36px vertical borders)
-        const int off_x = (PSP_SCREEN_WIDTH - SCREENWIDTH) / 2;  // 27
+        // 320x200 Pixel-Perfect Centered (with 80px pillarboxes and 36px letterboxes)
+        const int off_x = (PSP_SCREEN_WIDTH - SCREENWIDTH) / 2;  // 80
         const int off_y = (PSP_SCREEN_HEIGHT - SCREENHEIGHT) / 2; // 36
 
         // Clear top and bottom letterbox borders
@@ -326,24 +342,38 @@ void I_FinishUpdate(void)
             const byte* src_row = screens[0] + y * SCREENWIDTH;
             uint32_t* dst_row = dst_base + (y + off_y) * PSP_BUF_STRIDE;
 
-            // Clear left pillarbox
-            for (int x = 0; x < off_x; x++) dst_row[x] = 0;
+            // Clear left and right pillarboxes with fast memset
+            memset(dst_row, 0, off_x * sizeof(uint32_t));
+            memset(dst_row + off_x + SCREENWIDTH, 0, (PSP_SCREEN_WIDTH - (off_x + SCREENWIDTH)) * sizeof(uint32_t));
 
-            // Copy 426 pixels directly
-            for (int x = 0; x < SCREENWIDTH; x++)
+            // Copy 320 DOOM pixels directly (8x unrolled)
+            for (int x = 0; x < SCREENWIDTH; x += 8)
             {
-                dst_row[off_x + x] = psp_palette[src_row[x]];
-            }
+                uint32_t p0 = psp_palette[src_row[x + 0]];
+                uint32_t p1 = psp_palette[src_row[x + 1]];
+                uint32_t p2 = psp_palette[src_row[x + 2]];
+                uint32_t p3 = psp_palette[src_row[x + 3]];
+                uint32_t p4 = psp_palette[src_row[x + 4]];
+                uint32_t p5 = psp_palette[src_row[x + 5]];
+                uint32_t p6 = psp_palette[src_row[x + 6]];
+                uint32_t p7 = psp_palette[src_row[x + 7]];
 
-            // Clear right pillarbox
-            for (int x = off_x + SCREENWIDTH; x < PSP_SCREEN_WIDTH; x++) dst_row[x] = 0;
+                dst_row[off_x + x + 0] = p0;
+                dst_row[off_x + x + 1] = p1;
+                dst_row[off_x + x + 2] = p2;
+                dst_row[off_x + x + 3] = p3;
+                dst_row[off_x + x + 4] = p4;
+                dst_row[off_x + x + 5] = p5;
+                dst_row[off_x + x + 6] = p6;
+                dst_row[off_x + x + 7] = p7;
+            }
         }
     }
 
     // Wait for vertical blanking to eliminate screen tearing
     sceDisplayWaitVblankStart();
 
-    // Flip framebuffer using 0x04000000 physical VRAM address with NEXTFRAME sync
+    // Flip framebuffer using 0x04000000 physical VRAM address
     sceDisplaySetFrameBuf(vram_display[draw_buf_idx], PSP_BUF_STRIDE, PSP_DISPLAY_PIXEL_FORMAT_8888, PSP_DISPLAY_SETBUF_NEXTFRAME);
     current_buffer = draw_buf_idx;
 

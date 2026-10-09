@@ -239,9 +239,19 @@ void I_FinishUpdate(void)
     if (!screens[0] || !sdl_renderer || !sdl_texture)
         return;
 
-    for (int i = 0; i < SCREENWIDTH * SCREENHEIGHT; i++)
+    // Convert 8-bit paletted DOOM screen to 32-bit texture pixels (8x unrolled)
+    const byte* src = screens[0];
+    const int total = SCREENWIDTH * SCREENHEIGHT;
+    for (int i = 0; i < total; i += 8)
     {
-        sdl_pixels[i] = sdl_palette[screens[0][i]];
+        sdl_pixels[i + 0] = sdl_palette[src[i + 0]];
+        sdl_pixels[i + 1] = sdl_palette[src[i + 1]];
+        sdl_pixels[i + 2] = sdl_palette[src[i + 2]];
+        sdl_pixels[i + 3] = sdl_palette[src[i + 3]];
+        sdl_pixels[i + 4] = sdl_palette[src[i + 4]];
+        sdl_pixels[i + 5] = sdl_palette[src[i + 5]];
+        sdl_pixels[i + 6] = sdl_palette[src[i + 6]];
+        sdl_pixels[i + 7] = sdl_palette[src[i + 7]];
     }
 
     SDL_UpdateTexture(sdl_texture, NULL, sdl_pixels, SCREENWIDTH * sizeof(uint32_t));
