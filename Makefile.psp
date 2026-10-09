@@ -101,3 +101,4 @@ PSP_EBOOT_ICON = src/hal/psp/ICON0.PNG
 
 PSPSDK = $(shell psp-config --pspsdk-path)
 include $(PSPSDK)/lib/build.mak
+

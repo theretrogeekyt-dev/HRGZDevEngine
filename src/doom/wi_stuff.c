@@ -1540,7 +1540,7 @@ void WI_loadData(void)
 {
     int		i;
     int		j;
-    char	name[16];
+    char	name[32];
     anim_t*	a;
 
     if (gamemode == commercial)

@@ -359,3 +359,4 @@ void I_GetResolution(int* width, int* height, boolean* fullscreen)
     if (height) *height = PSP_SCREEN_HEIGHT;
     if (fullscreen) *fullscreen = true;
 }
+

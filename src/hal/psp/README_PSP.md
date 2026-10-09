@@ -63,3 +63,4 @@ docker run --rm -v "$(pwd):/src" -w /src pspdev/pspdev:latest make -f Makefile.p
 ```
 
 This generates `EBOOT.PBP` packaged with the authentic DOOM icon and metadata, ready to deploy.
+

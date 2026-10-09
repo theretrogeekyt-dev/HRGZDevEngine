@@ -185,9 +185,9 @@ void I_ResumeSong(int handle)
     (void)handle;
 }
 
-int I_RegisterSong(void* data, int len)
+int I_RegisterSong(void* data)
 {
-    (void)data; (void)len;
+    (void)data;
     return 1;
 }
 
@@ -206,8 +206,3 @@ void I_UnRegisterSong(int handle)
     (void)handle;
 }
 
-int I_QrySongPlaying(int handle)
-{
-    (void)handle;
-    return 0;
-}
