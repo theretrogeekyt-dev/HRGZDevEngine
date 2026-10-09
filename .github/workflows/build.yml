@@ -71,11 +71,14 @@ jobs:
           </dict>
           </plist>
           EOF
+          xattr -cr "${APP_DIR}"
+          codesign --force --deep --sign - "${APP_DIR}"
+          codesign --force --sign - build/mac/doom_mac
 
       - name: Create macOS Release Zip
         run: |
           cd build/mac
-          zip -r ../../HRGZDevEngine-DOOM-macOS.zip DOOM.app doom_mac
+          zip -r -y -X ../../HRGZDevEngine-DOOM-macOS.zip DOOM.app doom_mac
 
       - name: Upload macOS Artifact
         uses: actions/upload-artifact@v4

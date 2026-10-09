@@ -112,6 +112,13 @@ clang -O2 -std=c99 \
 ./build/mac/doom_mac -iwad doom1.wad
 ```
 
+> **Note on Downloaded macOS Release**:
+> When opening `DOOM.app` downloaded from GitHub, macOS Gatekeeper may flag unnotarized open-source binaries as "damaged" or unverified. If this occurs, run:
+> ```bash
+> xattr -cr /path/to/DOOM.app
+> ```
+> Or Right-Click `DOOM.app` -> Select **Open** -> Click **Open**.
+
 ### 2. Modern Windows (Native Win32 & OpenGL)
 #### MinGW-w64:
 ```bash
