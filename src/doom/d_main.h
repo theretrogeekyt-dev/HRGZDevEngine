@@ -35,6 +35,7 @@
 
 #define MAXWADFILES             20
 extern char*		wadfiles[MAXWADFILES];
+extern char		psp_game_dir[256];
 
 void D_AddFile (char *file);
 

@@ -83,7 +83,7 @@ OBJS = $(DOOM_OBJS) $(COMMON_OBJS) $(PSP_OBJS)
 
 INCDIR = src/doom src/hal/common src/hal/psp
 
-CFLAGS = -O2 -G0 -Wall -Wno-unused -Wno-parentheses -std=c99 -DPSP -D__PSP__
+CFLAGS = -O2 -G0 -Wall -Wno-unused -Wno-parentheses -std=c99 -DPSP -D__PSP__ -D_DEFAULT_SOURCE -D_GNU_SOURCE
 CXXFLAGS = $(CFLAGS) -fno-exceptions -fno-rtti
 ASFLAGS = $(CFLAGS)
 

@@ -79,12 +79,9 @@ int main(int argc, char **argv)
         {
             *slash = '\0';
             chdir(path);
-            setenv("DOOMWADDIR", path, 1);
+            strncpy(psp_game_dir, path, sizeof(psp_game_dir) - 1);
+            psp_game_dir[sizeof(psp_game_dir) - 1] = '\0';
         }
-    }
-    else
-    {
-        setenv("DOOMWADDIR", ".", 1);
     }
 
     myargc = argc;

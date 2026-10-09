@@ -549,6 +549,7 @@ void D_StartTitle (void)
 
 //      print title for every printed line
 char            title[128];
+char            psp_game_dir[256] = "";
 
 
 
@@ -611,8 +612,13 @@ void IdentifyVersion (void)
     }
 
     doomwaddir = getenv("DOOMWADDIR");
-    if (!doomwaddir)
-	doomwaddir = ".";
+    if (!doomwaddir || strlen(doomwaddir) == 0)
+    {
+        if (psp_game_dir[0] != '\0')
+            doomwaddir = psp_game_dir;
+        else
+            doomwaddir = ".";
+    }
 
     // Commercial.
     doom2wad = malloc(strlen(doomwaddir)+16);
