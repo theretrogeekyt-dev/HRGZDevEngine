@@ -35,14 +35,6 @@ The original 1997 Linux release was riddled with 32-bit pointer assumptions, una
 - Deterministic headless playsim runner for automated CI/CD and regression testing.
 - Renders genuine DOOM BSP scenes into uncompressed RGB PPM frames (`test_frame35.ppm`, `test_frame100.ppm`).
 
-### 5. Xbox 360 Homebrew & "Peer Pressure" Softmod HAL (`src/hal/xenon/`)
-- **Peer Pressure Softmod Support**: Built specifically to test and leverage Grimdoomer's persistent [Xbox 360 Peer Pressure Softmod](https://github.com/grimdoomer/Xbox360PeerPressure).
-- **XeLL Bare-Metal Execution (`xenon.elf`)**: Boots directly on bare-metal hardware via the console's **Eject Button** (Peer Pressure's built-in OtherOS XeLL environment), completely bypassing dashboard limitations.
-- **16:9 720p Widescreen Output**: Fast LUT-based scaling from DOOM's 426x200 16:9 framebuffer to 1280x720 HDTV resolution.
-- **PowerPC 50 MHz TimeBase Hardware Timer**: 64-bit `mftb` register timebase driver guaranteeing deterministic 35 Hz playsim tics on PowerPC.
-- **Twin-Stick Controller Mapping**: Full analog and digital integration with Xbox 360 wireless and USB controllers.
-- **Multi-Device Storage Autodiscovery**: Automatically detects IWADs across USB (`uda:`, `usb:`), internal HDD (`Hdd1:\PeerPressure\OtherOS\`), and game root.
-
 ---
 
 ## Directory Structure
@@ -65,13 +57,6 @@ HRGZDevEngine/
 │       │   ├── i_mus2midi.c / .h
 │       │   ├── i_net_ip.c / .h
 │       │   └── i_gamepad.c / .h   # Unified Xbox & PlayStation controller driver
-│       ├── xenon/         # Xbox 360 Peer Pressure & XeLL HAL (720p 16:9, PowerPC TB, Gamepad)
-│       │   ├── i_video_xenon.c
-│       │   ├── i_sound_xenon.c
-│       │   ├── i_system_xenon.c
-│       │   ├── i_net_xenon.c
-│       │   ├── i_main_xenon.c
-│       │   └── Makefile.xenon
 │       ├── mac/           # Native macOS driver (Metal HW accel, Cocoa, GameController, AudioToolbox)
 │       │   ├── i_video_mac.m
 │       │   ├── i_sound_mac.m
@@ -166,29 +151,7 @@ gcc -O2 -std=c99 \
 ./build/linux/doom_sdl -iwad doom1.wad
 ```
 
-### 4. Xbox 360 Homebrew ("Peer Pressure" Softmod via XeLL)
-Xbox 360 bare-metal homebrew applications are built as **PowerPC ELF** binaries (`xenon.elf`) that run under **XeLL** (the Xenon Linux Loader), taking direct uninhibited control of the Xenon PowerPC CPU, 720p 16:9 framebuffer, audio DAC, and USB controllers.
-
-#### How to Play on Xbox 360 (Peer Pressure Softmod):
-1. **Direct Launch from Aurora Dashboard / XeXMenu (`default.xex`)**:
-   - The release package includes `default.xex` pre-configured to launch directly from the Aurora dashboard.
-   - Copy the folder containing `default.xex`, `xenon.elf`, and `doom1.wad` into your console games or apps folder (e.g. `Hdd1:\Games\DOOM\` or `Usb0:\DOOM\`).
-   - In Aurora, open the DOOM folder and click `default.xex` (or launch DOOM from your Aurora game list). It launches seamlessly into DOOM 720p 16:9!
-2. **Direct Hardware Boot via the Console Eject Button (`xenon.elf`)**:
-   - Copy `xenon.elf` and `doom1.wad` directly to the **ROOT** of a FAT32 USB drive (or to `Hdd1:\PeerPressure\OtherOS\` on console HDD).
-   - Turn on the console by pressing the **EJECT BUTTON**.
-   - Peer Pressure boots directly into XeLL, auto-detects `xenon.elf`, and launches DOOM immediately!
-
-#### Compiling with PowerPC Cross-Compiler:
-```bash
-# Cross-compile for PowerPC 32-bit Big-Endian (XeLL):
-powerpc-linux-gnu-gcc -O2 -m32 -mbig-endian \
-  -std=c99 -DLIBXENON -D__BIG_ENDIAN__ \
-  src/doom/*.c src/hal/common/*.c src/hal/xenon/*.c \
-  -Isrc/doom -Isrc/hal/common -Isrc/hal/xenon/include -lm -s -o build/xenon/xenon.elf
-```
-
-### 5. Automated Headless Test Suite (Any OS)
+### 4. Automated Headless Test Suite (Any OS)
 ```bash
 mkdir -p build/test
 gcc -O2 -std=c99 \

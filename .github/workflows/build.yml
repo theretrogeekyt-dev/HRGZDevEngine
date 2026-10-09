@@ -208,113 +208,11 @@ jobs:
           path: build/test_results/
 
   #--------------------------------------------------------------------------
-  # 4. Xbox 360 Homebrew Package (Peer Pressure Softmod via XeLL)
-  #--------------------------------------------------------------------------
-  build-xbox360:
-    name: Xbox 360 Homebrew (Peer Pressure / XeLL)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Install PowerPC Cross-Compiler
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-powerpc-linux-gnu libc6-dev-powerpc-cross binutils-powerpc-linux-gnu
-
-      - name: Run Host Verification Test on Xbox 360 HAL
-        run: |
-          mkdir -p build/xenon
-          gcc -O2 -Wall -Wno-parentheses -Wno-unused-const-variable \
-            -Wno-unused-but-set-variable -Wno-unused-variable \
-            -Wno-misleading-indentation -Wno-format-overflow -Wno-unused-result \
-            -std=c99 \
-            src/doom/*.c src/hal/common/*.c src/hal/xenon/*.c \
-            -Isrc/doom -Isrc/hal/common -Isrc/hal/xenon/include \
-            -lm -s -o build/xenon/doom_xenon_host
-
-          # Run 30-frame verification test
-          ./build/xenon/doom_xenon_host -iwad doom1.wad -warp 1 1 -testframes 30
-
-      - name: Cross-Compile Native PowerPC XeLL ELF (xenon.elf)
-        run: |
-          # Compile true 32-bit Big-Endian PowerPC executable for Xbox 360 XeLL
-          powerpc-linux-gnu-gcc -O2 -m32 -mbig-endian \
-            -Wall -Wno-parentheses -Wno-unused-const-variable \
-            -Wno-unused-but-set-variable -Wno-unused-variable \
-            -Wno-misleading-indentation -Wno-format-overflow -Wno-unused-result \
-            -Wno-error=implicit-function-declaration \
-            -Wno-error=incompatible-pointer-types \
-            -Wno-error=int-conversion \
-            -Wno-implicit-function-declaration \
-            -std=gnu99 -DLIBXENON -D_GNU_SOURCE -D_DEFAULT_SOURCE \
-            src/doom/*.c src/hal/common/*.c src/hal/xenon/*.c \
-            -Isrc/doom -Isrc/hal/common -Isrc/hal/xenon/include \
-            -lm -s -o build/xenon/xenon.elf > build/xenon/compile.log 2>&1 || true
-
-          cat build/xenon/compile.log
-          cp build/xenon/compile.log build/xenon/build_log.txt
-
-          if [ ! -f build/xenon/xenon.elf ]; then
-            ERR=$(grep -i "error:" build/xenon/compile.log | head -n 5 | tr '\n' ' ')
-            if [ -z "$ERR" ]; then
-              ERR=$(tail -n 10 build/xenon/compile.log | tr '\n' ' ')
-            fi
-            echo "::error::$ERR"
-            exit 1
-          fi
-
-          file build/xenon/xenon.elf
-
-      - name: Package Xbox 360 Release Zip
-        run: |
-          test -f build/xenon/xenon.elf || { echo "ERROR: xenon.elf not found"; exit 1; }
-          test -f src/hal/xenon/default.xex || { echo "ERROR: default.xex not found"; exit 1; }
-          test -f src/hal/xenon/prboom.xex || { echo "ERROR: prboom.xex not found"; exit 1; }
-          test -f src/hal/xenon/prboom.wad || { echo "ERROR: prboom.wad not found"; exit 1; }
-
-          mkdir -p build/package_xbox360/system
-          mkdir -p build/package_xbox360/roms/prboom
-          mkdir -p build/package_xbox360/config
-          mkdir -p build/package_xbox360/assets
-
-          # Native Standalone XEX Executables & Configs
-          cp src/hal/xenon/default.xex build/package_xbox360/default.xex
-          cp src/hal/xenon/prboom.xex build/package_xbox360/prboom.xex
-          cp src/hal/xenon/salvia.cfg build/package_xbox360/salvia.cfg
-          cp src/hal/xenon/retropad.ini build/package_xbox360/retropad.ini
-          cp src/hal/xenon/cover_aurora.jpg build/package_xbox360/cover_aurora.jpg
-          cp src/hal/xenon/README_XBOX360.txt build/package_xbox360/README_XBOX360.txt
-
-          # Engine data lumps, configs, and assets
-          cp src/hal/xenon/prboom.wad build/package_xbox360/system/prboom.wad
-          cp src/hal/xenon/config/prboom.cfg build/package_xbox360/config/prboom.cfg
-          cp -r src/hal/xenon/assets/* build/package_xbox360/assets/
-
-          # IWADs
-          cp doom1.wad build/package_xbox360/doom1.wad
-          cp doom1.wad build/package_xbox360/roms/prboom/doom1.wad
-
-          # Include PowerPC XeLL ELF as optional alternative
-          cp build/xenon/xenon.elf build/package_xbox360/xenon.elf
-
-          cd build/package_xbox360
-          zip -r ../../HRGZDevEngine-DOOM-Xbox360.zip .
-          cd ../..
-          test -f HRGZDevEngine-DOOM-Xbox360.zip || { echo "ERROR: Zip packaging failed"; exit 1; }
-
-      - name: Upload Xbox 360 Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: HRGZDevEngine-DOOM-Xbox360
-          path: HRGZDevEngine-DOOM-Xbox360.zip
-
-  #--------------------------------------------------------------------------
-  # 5. Automated GitHub Release Packaging & Changelog
+  # 4. Automated GitHub Release Packaging & Changelog
   #--------------------------------------------------------------------------
   release:
     name: Publish GitHub Release
-    needs: [build-macos, build-windows, test-and-verify, build-xbox360]
+    needs: [build-macos, build-windows, test-and-verify]
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
@@ -340,11 +238,6 @@ jobs:
         with:
           name: HRGZDevEngine-DOOM-Linux-SDL2
 
-      - name: Download Xbox 360 Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: HRGZDevEngine-DOOM-Xbox360
-
       - name: Generate Release Notes & Changelog
         run: |
           # Generate unique version starting with prefix 0.0.1
@@ -369,7 +262,6 @@ jobs:
           | 🍏 **macOS** | [`HRGZDevEngine-DOOM-macOS.zip`](https://github.com/${{ github.repository }}/releases/download/latest/HRGZDevEngine-DOOM-macOS.zip) | Metal HW Accel + Cocoa + AudioToolbox |
           | 🪟 **Windows** | [`HRGZDevEngine-DOOM-Windows.zip`](https://github.com/${{ github.repository }}/releases/download/latest/HRGZDevEngine-DOOM-Windows.zip) | Win32 + OpenGL HW Accel + WinMM + Winsock2 |
           | 🐧 **Linux** | [`HRGZDevEngine-DOOM-Linux-SDL2.zip`](https://github.com/${{ github.repository }}/releases/download/latest/HRGZDevEngine-DOOM-Linux-SDL2.zip) | SDL2 Driver + Software Audio Mixer |
-          | 🎮 **Xbox 360** | [`HRGZDevEngine-DOOM-Xbox360.zip`](https://github.com/${{ github.repository }}/releases/download/latest/HRGZDevEngine-DOOM-Xbox360.zip) | Standalone Native XEX (Direct3D 9 / XInput) + XeLL ELF |
 
           ---
 
@@ -387,9 +279,10 @@ jobs:
 
           ### ✨ Key Features
           - **Hardware-Accelerated Rendering**: Native Apple Metal (macOS) and OpenGL (Windows) streaming presentation
-          - **Xbox 360 Standalone Homebrew**: Native Direct3D 9 & XInput standalone XEX executable for Aurora / XeXMenu dashboards without XeLL reboot (plus bare-metal XeLL PowerPC ELF)
-          - **16:9 True Widescreen**: 426x200 sub-pixel resolution scaled to 720p with extended horizontal field of view
+          - **16:9 True Widescreen**: 426x200 sub-pixel resolution scaled to modern displays with extended horizontal field of view
           - **Frame Refresh & Clearing System**: Double-buffered frame clearing and tear-free vertical sync
+          - **Dual Audio Subsystem**: High-precision 16-bit software mixer sound effects + authentic General MIDI music
+          - **Gamepad Controller Support**: Unified twin-stick support for PlayStation (DualSense, DualShock 4) and Xbox controllers
           - **Integrated IP Multiplayer**: UDP lobby system, peer-to-peer matchmaking, and in-game server hosting
           - **Automated Validation**: Regression-tested against canonical E1M1 playsim frame suites
           EOF
@@ -404,10 +297,10 @@ jobs:
             HRGZDevEngine-DOOM-macOS.zip
             HRGZDevEngine-DOOM-Windows.zip
             HRGZDevEngine-DOOM-Linux-SDL2.zip
-            HRGZDevEngine-DOOM-Xbox360.zip
           draft: false
           prerelease: false
           make_latest: true
+
 
 
 
