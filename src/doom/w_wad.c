@@ -86,10 +86,14 @@ void**			lumpcache;
 #endif
 
 #if !defined(_WIN32)
-void strupr (char* s)
+#if !defined(PSP) && !defined(__PSP__)
+char* strupr (char* s)
 {
-    while (*s) { *s = toupper(*s); s++; }
+    char* p = s;
+    while (*p) { *p = toupper((unsigned char)*p); p++; }
+    return s;
 }
+#endif
 
 int filelength (int handle) 
 { 
