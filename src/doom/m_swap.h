@@ -31,11 +31,22 @@
 
 // Endianess handling.
 // WAD files are stored little endian.
-#ifdef __BIG_ENDIAN__
+#if defined(__BIG_ENDIAN__) || \
+    (defined(__BYTE_ORDER__) && defined(__ORDER_BIG_ENDIAN__) && (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)) || \
+    defined(_BIG_ENDIAN) || \
+    defined(__powerpc__) || defined(__ppc__) || defined(__PPC__) || \
+    defined(_XBOX) || defined(LIBXENON)
+#ifndef DOOM_BIG_ENDIAN
+#define DOOM_BIG_ENDIAN 1
+#endif
+#endif
+
 short	SwapSHORT(short);
 long	SwapLONG(long);
-#define SHORT(x)	((short)SwapSHORT((unsigned short) (x)))
-#define LONG(x)         ((long)SwapLONG((unsigned long) (x)))
+
+#ifdef DOOM_BIG_ENDIAN
+#define SHORT(x)	((short)SwapSHORT((short)(x)))
+#define LONG(x)         ((long)SwapLONG((long)(x)))
 #else
 #define SHORT(x)	((short)(x))
 #define LONG(x)         ((int)(x))

@@ -1,6 +1,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "i_sound_mixer.h"
+#include "m_swap.h"
 
 static mixer_channel_t channels[MIXER_MAX_CHANNELS];
 static int next_handle = 1;
@@ -33,8 +34,8 @@ int I_Mixer_StartSound(const uint8_t* sfx_data, size_t sfx_len, int vol, int sep
         return 0;
 
     const doom_sfx_header_t* hdr = (const doom_sfx_header_t*)sfx_data;
-    uint32_t sample_rate = hdr->samplerate;
-    uint32_t sample_count = hdr->samplecount;
+    uint32_t sample_rate = (uint32_t)SHORT(hdr->samplerate);
+    uint32_t sample_count = (uint32_t)LONG(hdr->samplecount);
 
     if (sample_count == 0 || sample_count + sizeof(doom_sfx_header_t) > sfx_len)
     {
