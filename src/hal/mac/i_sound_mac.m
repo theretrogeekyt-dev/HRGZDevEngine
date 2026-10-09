@@ -285,6 +285,36 @@ int I_RegisterSong(void* data)
     return 1;
 }
 
+static void I_ResetSynth(void)
+{
+    if (!current_sequence)
+        return;
+
+    AUGraph graph = NULL;
+    MusicSequenceGetAUGraph(current_sequence, &graph);
+    if (graph)
+    {
+        AUNode synthNode;
+        if (AUGraphGetIndNode(graph, 0, &synthNode) == noErr)
+        {
+            AudioUnit synthUnit;
+            if (AUGraphNodeInfo(graph, synthNode, NULL, &synthUnit) == noErr)
+            {
+                AudioUnitReset(synthUnit, kAudioUnitScope_Global, 0);
+                for (int ch = 0; ch < 16; ch++)
+                {
+                    MusicDeviceMIDIEvent(synthUnit, 0xB0 | ch, 120, 0, 0); // All Sound Off
+                    MusicDeviceMIDIEvent(synthUnit, 0xB0 | ch, 123, 0, 0); // All Notes Off
+                    MusicDeviceMIDIEvent(synthUnit, 0xE0 | ch, 0x00, 0x40, 0); // Pitch Bend Center (8192)
+                    MusicDeviceMIDIEvent(synthUnit, 0xB0 | ch, 1, 0, 0);   // Mod Wheel 0
+                    MusicDeviceMIDIEvent(synthUnit, 0xB0 | ch, 64, 0, 0);  // Sustain Off
+                    MusicDeviceMIDIEvent(synthUnit, 0xB0 | ch, 121, 0, 0); // Reset All Controllers
+                }
+            }
+        }
+    }
+}
+
 void I_PlaySong(int handle, int looping)
 {
     (void)handle;
@@ -307,6 +337,8 @@ void I_PlaySong(int handle, int looping)
     {
         UInt32 numTracks = 0;
         MusicSequenceGetTrackCount(current_sequence, &numTracks);
+        MusicTimeStamp maxTrackLength = 0;
+
         for (UInt32 i = 0; i < numTracks; i++)
         {
             MusicTrack track;
@@ -314,14 +346,22 @@ void I_PlaySong(int handle, int looping)
             MusicTimeStamp trackLength = 0;
             UInt32 propSize = sizeof(trackLength);
             MusicTrackGetProperty(track, kSequenceTrackProperty_TrackLength, &trackLength, &propSize);
+            if (trackLength > maxTrackLength)
+                maxTrackLength = trackLength;
+        }
 
+        for (UInt32 i = 0; i < numTracks; i++)
+        {
+            MusicTrack track;
+            MusicSequenceGetIndTrack(current_sequence, i, &track);
             MusicTrackLoopInfo loopInfo;
-            loopInfo.loopDuration = trackLength;
+            loopInfo.loopDuration = maxTrackLength;
             loopInfo.numberOfLoops = 0; // Infinitely loop
             MusicTrackSetProperty(track, kSequenceTrackProperty_LoopInfo, &loopInfo, sizeof(loopInfo));
         }
     }
 
+    I_ResetSynth();
     MusicPlayerSetTime(music_player, 0);
     I_SetMusicVolume(music_volume);
     MusicPlayerStart(music_player);
@@ -331,7 +371,11 @@ void I_StopSong(int handle)
 {
     (void)handle;
     if (music_player)
+    {
         MusicPlayerStop(music_player);
+        MusicPlayerSetTime(music_player, 0);
+    }
+    I_ResetSynth();
 }
 
 void I_UnRegisterSong(int handle)
@@ -341,6 +385,7 @@ void I_UnRegisterSong(int handle)
     {
         if (music_player)
             MusicPlayerStop(music_player);
+        I_ResetSynth();
         DisposeMusicSequence(current_sequence);
         current_sequence = NULL;
     }

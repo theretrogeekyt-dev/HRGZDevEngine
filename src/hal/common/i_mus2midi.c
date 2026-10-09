@@ -98,15 +98,102 @@ uint8_t* I_MusToMidi(const uint8_t* mus_data, size_t mus_len, size_t* midi_len)
     if (score_start >= mus_len)
         return NULL;
 
-    // Allocate an output buffer generously
-    size_t max_track_size = mus_len * 4 + 1024;
+    size_t actual_mus_len = mus_len;
+    if (hdr->score_len > 0 && (size_t)(score_start + hdr->score_len) <= mus_len)
+    {
+        actual_mus_len = score_start + hdr->score_len;
+    }
+
+    // Allocate an output buffer generously (accounting for channel reset blocks)
+    size_t max_track_size = actual_mus_len * 4 + 4096;
     uint8_t* track_buf = (uint8_t*)malloc(max_track_size);
     if (!track_buf)
         return NULL;
 
     uint8_t* trk = track_buf;
     const uint8_t* mus = mus_data + score_start;
-    const uint8_t* mus_end = mus_data + mus_len;
+    const uint8_t* mus_end = mus_data + actual_mus_len;
+
+    // Emit initial controller states for all 16 channels at delta time 0
+    // so any loop back to timestamp 0 starts in a clean, calibrated state.
+    for (int ch = 0; ch < 16; ch++)
+    {
+        // Controller 121: Reset All Controllers
+        WriteVarLen(&trk, 0);
+        *trk++ = 0xB0 | ch;
+        *trk++ = 121;
+        *trk++ = 0;
+
+        // Controller 120: All Sound Off
+        WriteVarLen(&trk, 0);
+        *trk++ = 0xB0 | ch;
+        *trk++ = 120;
+        *trk++ = 0;
+
+        // Controller 123: All Notes Off
+        WriteVarLen(&trk, 0);
+        *trk++ = 0xB0 | ch;
+        *trk++ = 123;
+        *trk++ = 0;
+
+        // Pitch Bend to center (8192 = 0x2000 => LSB 0x00, MSB 0x40)
+        WriteVarLen(&trk, 0);
+        *trk++ = 0xE0 | ch;
+        *trk++ = 0x00;
+        *trk++ = 0x40;
+
+        // Controller 1: Modulation Wheel = 0
+        WriteVarLen(&trk, 0);
+        *trk++ = 0xB0 | ch;
+        *trk++ = 1;
+        *trk++ = 0;
+
+        // Controller 64: Sustain / Damper Pedal = 0 (off)
+        WriteVarLen(&trk, 0);
+        *trk++ = 0xB0 | ch;
+        *trk++ = 64;
+        *trk++ = 0;
+
+        // Controller 11: Expression = 127 (full)
+        WriteVarLen(&trk, 0);
+        *trk++ = 0xB0 | ch;
+        *trk++ = 11;
+        *trk++ = 127;
+
+        // Standard GM Pitch Bend Sensitivity (+/- 2 semitones):
+        // RPN MSB (101) = 0, RPN LSB (100) = 0
+        WriteVarLen(&trk, 0);
+        *trk++ = 0xB0 | ch;
+        *trk++ = 101;
+        *trk++ = 0;
+
+        WriteVarLen(&trk, 0);
+        *trk++ = 0xB0 | ch;
+        *trk++ = 100;
+        *trk++ = 0;
+
+        // Data Entry MSB (6) = 2 (semitones), Data Entry LSB (38) = 0 (cents)
+        WriteVarLen(&trk, 0);
+        *trk++ = 0xB0 | ch;
+        *trk++ = 6;
+        *trk++ = 2;
+
+        WriteVarLen(&trk, 0);
+        *trk++ = 0xB0 | ch;
+        *trk++ = 38;
+        *trk++ = 0;
+
+        // Deselect RPN: RPN MSB (101) = 127, RPN LSB (100) = 127
+        WriteVarLen(&trk, 0);
+        *trk++ = 0xB0 | ch;
+        *trk++ = 101;
+        *trk++ = 127;
+
+        WriteVarLen(&trk, 0);
+        *trk++ = 0xB0 | ch;
+        *trk++ = 100;
+        *trk++ = 127;
+    }
 
     uint8_t last_velocity[16] = {64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64};
     uint32_t queued_delta = 0;
@@ -151,8 +238,21 @@ uint8_t* I_MusToMidi(const uint8_t* mus_data, size_t mus_len, size_t* midi_len)
             {
                 if (mus >= mus_end) break;
                 uint8_t wheel = *mus++;
-                // Convert 8-bit MUS pitch (0..255) to 14-bit MIDI pitch
-                uint16_t bend = (uint16_t)wheel << 6;
+                // Convert 8-bit MUS pitch (0..255) to 14-bit MIDI pitch (0..16383)
+                // Center 128 maps exactly to 8192 (0x2000 => LSB 0x00, MSB 0x40)
+                uint16_t bend;
+                if (wheel == 128)
+                {
+                    bend = 8192;
+                }
+                else if (wheel < 128)
+                {
+                    bend = (uint16_t)wheel * 64; // 0..127 -> 0..8128
+                }
+                else
+                {
+                    bend = 8192 + (uint16_t)(wheel - 128) * 8191 / 127; // 129..255 -> 8256..16383
+                }
                 WriteVarLen(&trk, queued_delta);
                 queued_delta = 0;
                 *trk++ = 0xE0 | chan;
@@ -217,8 +317,51 @@ uint8_t* I_MusToMidi(const uint8_t* mus_data, size_t mus_len, size_t* midi_len)
     }
 
 score_end:
-    // Write End of Track meta event
-    WriteVarLen(&trk, queued_delta);
+    // Write track-end cleanup events (silence notes and reset pitch/modulation before loop)
+    for (int ch = 0; ch < 16; ch++)
+    {
+        // First event absorbs any queued_delta accumulated at the end of the song
+        WriteVarLen(&trk, queued_delta);
+        queued_delta = 0;
+
+        // All Sound Off & All Notes Off
+        *trk++ = 0xB0 | ch;
+        *trk++ = 120;
+        *trk++ = 0;
+
+        WriteVarLen(&trk, 0);
+        *trk++ = 0xB0 | ch;
+        *trk++ = 123;
+        *trk++ = 0;
+
+        // Pitch Bend to center (8192 = 0x2000 => LSB 0x00, MSB 0x40)
+        WriteVarLen(&trk, 0);
+        *trk++ = 0xE0 | ch;
+        *trk++ = 0x00;
+        *trk++ = 0x40;
+
+        // Modulation Wheel = 0
+        WriteVarLen(&trk, 0);
+        *trk++ = 0xB0 | ch;
+        *trk++ = 1;
+        *trk++ = 0;
+
+        // Sustain / Damper Pedal = 0
+        WriteVarLen(&trk, 0);
+        *trk++ = 0xB0 | ch;
+        *trk++ = 64;
+        *trk++ = 0;
+
+        // Controller 121: Reset All Controllers
+        WriteVarLen(&trk, 0);
+        *trk++ = 0xB0 | ch;
+        *trk++ = 121;
+        *trk++ = 0;
+    }
+
+    // Add pad delta time (4 tics = ~28ms at 140Hz MUS rate) before End of Track
+    // so synthesizers process cleanup before loop boundary wrap
+    WriteVarLen(&trk, 4);
     *trk++ = 0xFF;
     *trk++ = 0x2F;
     *trk++ = 0x00;
