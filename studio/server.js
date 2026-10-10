@@ -260,7 +260,7 @@ const server = http.createServer(async (req, res) => {
                 }
                 if (fs.existsSync(macBinary)) {
                     execCmd = macBinary;
-                    execCwd = path.dirname(macBinary);
+                    execCwd = path.join(appPath, 'Contents', 'Resources');
                     const embeddedWad = path.join(appPath, 'Contents', 'Resources', 'game.wad');
                     if (fs.existsSync(embeddedWad)) {
                         execArgs = ['-iwad', embeddedWad];
@@ -279,8 +279,13 @@ const server = http.createServer(async (req, res) => {
                 if (fs.existsSync(winExe)) {
                     execCmd = winExe;
                     execCwd = winDir;
-                    const wad = resolveWadPath(project.wadPath);
-                    if (wad) execArgs = ['-iwad', wad];
+                    const embeddedWad = path.join(winDir, 'game.wad');
+                    if (fs.existsSync(embeddedWad)) {
+                        execArgs = ['-iwad', embeddedWad];
+                    } else {
+                        const wad = resolveWadPath(project.wadPath);
+                        if (wad) execArgs = ['-iwad', wad];
+                    }
                 }
             } else {
                 const linuxDir = path.join(WORKSPACE_ROOT, 'build', 'projects', project.id, 'linux');
@@ -291,8 +296,13 @@ const server = http.createServer(async (req, res) => {
                 if (fs.existsSync(linuxBin)) {
                     execCmd = linuxBin;
                     execCwd = linuxDir;
-                    const wad = resolveWadPath(project.wadPath);
-                    if (wad) execArgs = ['-iwad', wad];
+                    const embeddedWad = path.join(linuxDir, 'game.wad');
+                    if (fs.existsSync(embeddedWad)) {
+                        execArgs = ['-iwad', embeddedWad];
+                    } else {
+                        const wad = resolveWadPath(project.wadPath);
+                        if (wad) execArgs = ['-iwad', wad];
+                    }
                 }
             }
 

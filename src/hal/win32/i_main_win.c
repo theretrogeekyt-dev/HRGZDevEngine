@@ -18,6 +18,22 @@
 
 int main(int argc, char** argv)
 {
+    // Ensure working directory is set to the binary's directory so relative paths
+    // (game.wad, game.json, etc.) resolve when launched from Explorer or shortcuts.
+    char exePath[MAX_PATH];
+    if (GetModuleFileNameA(NULL, exePath, MAX_PATH) > 0)
+    {
+        char* lastSlash = strrchr(exePath, '\\');
+        if (!lastSlash)
+            lastSlash = strrchr(exePath, '/');
+        if (lastSlash)
+        {
+            *lastSlash = '\0';
+            SetCurrentDirectoryA(exePath);
+            SetEnvironmentVariableA("DOOMWADDIR", exePath);
+        }
+    }
+
     myargc = argc;
     myargv = argv;
 

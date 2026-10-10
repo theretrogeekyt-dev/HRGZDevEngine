@@ -24,6 +24,7 @@
 
 static char s_game_title[256] = "HRGZDevEngine DOOM";
 static char s_game_id[128] = "hrgzdoom";
+static char s_game_mode[64] = "";
 static char s_game_wad[512] = "";
 static char s_save_dir[512] = "";
 static bool s_initialized = false;
@@ -95,9 +96,25 @@ static void LoadManifest(const char* manifest_path)
                 strncpy(s_game_id, temp, sizeof(s_game_id) - 1);
 
             temp[0] = '\0';
+            ExtractJsonString(buf, "wadPath", temp, sizeof(temp));
+            if (temp[0] != '\0' && FileExists(temp))
+                strncpy(s_game_wad, temp, sizeof(s_game_wad) - 1);
+
+            temp[0] = '\0';
             ExtractJsonString(buf, "wad", temp, sizeof(temp));
             if (temp[0] != '\0' && FileExists(temp))
                 strncpy(s_game_wad, temp, sizeof(s_game_wad) - 1);
+
+            temp[0] = '\0';
+            ExtractJsonString(buf, "gameMode", temp, sizeof(temp));
+            if (temp[0] != '\0')
+                strncpy(s_game_mode, temp, sizeof(s_game_mode) - 1);
+            else
+            {
+                ExtractJsonString(buf, "gamemode", temp, sizeof(temp));
+                if (temp[0] != '\0')
+                    strncpy(s_game_mode, temp, sizeof(s_game_mode) - 1);
+            }
 
             free(buf);
         }
@@ -119,21 +136,38 @@ void I_InitGameConfig(void)
     strncpy(s_game_id, HRGZ_GAME_ID, sizeof(s_game_id) - 1);
 #endif
 
-    // 1. Look for game.json manifest
+    // 1. Look for game.json in DOOMWADDIR if set
+    const char* env_dir = getenv("DOOMWADDIR");
+    if (env_dir && env_dir[0] != '\0')
+    {
+        char temp_path[512];
+        snprintf(temp_path, sizeof(temp_path), "%s/game.json", env_dir);
+        if (FileExists(temp_path))
+            LoadManifest(temp_path);
+        
+        if (s_game_wad[0] == '\0')
+        {
+            snprintf(temp_path, sizeof(temp_path), "%s/game.wad", env_dir);
+            if (FileExists(temp_path))
+                strncpy(s_game_wad, temp_path, sizeof(s_game_wad) - 1);
+            else
+            {
+                snprintf(temp_path, sizeof(temp_path), "%s/GAME.WAD", env_dir);
+                if (FileExists(temp_path))
+                    strncpy(s_game_wad, temp_path, sizeof(s_game_wad) - 1);
+            }
+        }
+    }
+
+    // 2. Look for game.json manifest in current directory and parent resources
     if (FileExists("game.json"))
         LoadManifest("game.json");
+    else if (FileExists("../Resources/game.json"))
+        LoadManifest("../Resources/game.json");
     else if (FileExists("hrgz.json"))
         LoadManifest("hrgz.json");
 
-#ifdef __APPLE__
-    // Check macOS bundle Resources directory relative to Contents/MacOS/
-    if (FileExists("../Resources/game.json"))
-        LoadManifest("../Resources/game.json");
-    if (FileExists("../Resources/game.wad") && s_game_wad[0] == '\0')
-        strncpy(s_game_wad, "../Resources/game.wad", sizeof(s_game_wad) - 1);
-#endif
-
-    // 2. Auto-discover bundled game.wad if not yet resolved
+    // 3. Auto-discover bundled game.wad if not yet resolved
     if (s_game_wad[0] == '\0')
     {
 #ifdef HRGZ_GAME_WAD
@@ -146,8 +180,18 @@ void I_InitGameConfig(void)
                 strncpy(s_game_wad, "game.wad", sizeof(s_game_wad) - 1);
             else if (FileExists("GAME.WAD"))
                 strncpy(s_game_wad, "GAME.WAD", sizeof(s_game_wad) - 1);
+            else if (FileExists("../Resources/game.wad"))
+                strncpy(s_game_wad, "../Resources/game.wad", sizeof(s_game_wad) - 1);
+            else if (FileExists("../Resources/GAME.WAD"))
+                strncpy(s_game_wad, "../Resources/GAME.WAD", sizeof(s_game_wad) - 1);
             else if (FileExists("project.wad"))
                 strncpy(s_game_wad, "project.wad", sizeof(s_game_wad) - 1);
+            else if (FileExists("doom1.wad"))
+                strncpy(s_game_wad, "doom1.wad", sizeof(s_game_wad) - 1);
+            else if (FileExists("DOOM1.WAD"))
+                strncpy(s_game_wad, "DOOM1.WAD", sizeof(s_game_wad) - 1);
+            else if (FileExists("../Resources/doom1.wad"))
+                strncpy(s_game_wad, "../Resources/doom1.wad", sizeof(s_game_wad) - 1);
         }
     }
 
@@ -219,6 +263,13 @@ const char* I_GetGameWadPath(void)
     if (!s_initialized)
         I_InitGameConfig();
     return s_game_wad[0] != '\0' ? s_game_wad : NULL;
+}
+
+const char* I_GetGameModeString(void)
+{
+    if (!s_initialized)
+        I_InitGameConfig();
+    return s_game_mode[0] != '\0' ? s_game_mode : NULL;
 }
 
 const char* I_GetSaveDir(void)

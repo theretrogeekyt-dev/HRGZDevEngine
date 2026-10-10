@@ -24,6 +24,9 @@ const char* I_GetGameId(void);
 // Returns the path to the auto-discovered game WAD (or NULL if not found)
 const char* I_GetGameWadPath(void);
 
+// Returns the configured game mode string (shareware, registered, retail, commercial) or NULL
+const char* I_GetGameModeString(void);
+
 // Returns the full directory path for saves and configuration
 const char* I_GetSaveDir(void);
 

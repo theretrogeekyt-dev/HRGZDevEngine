@@ -72,6 +72,7 @@ static const char rcsid[] = "$Id: d_main.c,v 1.8 1997/02/03 22:45:09 b1 Exp $";
 #include "m_argv.h"
 #include "m_misc.h"
 #include "m_menu.h"
+#include "m_swap.h"
 
 #include "i_system.h"
 #include "i_sound.h"
@@ -595,6 +596,105 @@ static boolean check_file_exists (const char* filename)
     return false;
 }
 
+#if defined(_WIN32)
+#define strcasecmp _stricmp
+#define strncasecmp _strnicmp
+#endif
+
+typedef struct {
+    char identification[4];
+    int32_t numlumps;
+    int32_t infotableofs;
+} wad_file_header_t;
+
+typedef struct {
+    int32_t filepos;
+    int32_t size;
+    char name[8];
+} wad_file_lump_t;
+
+//
+// DetectWadGameMode
+// Intelligently inspects WAD contents (MAP01 vs E1M1 markers)
+// and game.json configuration to determine the exact game mode.
+//
+static GameMode_t DetectWadGameMode(const char* wad_path)
+{
+    // 1. If game.json or environment specifies game mode, respect it first
+    const char* config_mode = I_GetGameModeString();
+    if (config_mode && config_mode[0] != '\0')
+    {
+        if (strcasecmp(config_mode, "shareware") == 0) return shareware;
+        if (strcasecmp(config_mode, "registered") == 0) return registered;
+        if (strcasecmp(config_mode, "retail") == 0) return retail;
+        if (strcasecmp(config_mode, "commercial") == 0) return commercial;
+    }
+
+    // 2. Open WAD file and scan lump directory for map markers
+    FILE* f = fopen(wad_path, "rb");
+    if (!f)
+        return shareware;
+
+    wad_file_header_t hdr;
+    if (fread(&hdr, 1, sizeof(hdr), f) != sizeof(hdr))
+    {
+        fclose(f);
+        return shareware;
+    }
+
+    int32_t num_lumps = LONG(hdr.numlumps);
+    int32_t info_ofs = LONG(hdr.infotableofs);
+
+    if (num_lumps <= 0 || num_lumps > 65536 || fseek(f, info_ofs, SEEK_SET) != 0)
+    {
+        fclose(f);
+        return shareware;
+    }
+
+    boolean has_map01 = false;
+    boolean has_e1m1 = false;
+    boolean has_e2m1 = false;
+    boolean has_e4m1 = false;
+
+    for (int32_t i = 0; i < num_lumps; i++)
+    {
+        wad_file_lump_t entry;
+        if (fread(&entry, 1, sizeof(entry), f) != sizeof(entry))
+            break;
+
+        if (strncasecmp(entry.name, "MAP01", 5) == 0)
+            has_map01 = true;
+        else if (strncasecmp(entry.name, "E1M1", 4) == 0)
+            has_e1m1 = true;
+        else if (strncasecmp(entry.name, "E2M1", 4) == 0)
+            has_e2m1 = true;
+        else if (strncasecmp(entry.name, "E4M1", 4) == 0)
+            has_e4m1 = true;
+    }
+    fclose(f);
+
+    if (has_map01)
+        return commercial;
+    if (has_e4m1)
+        return retail;
+    if (has_e2m1)
+        return registered;
+    if (has_e1m1)
+        return shareware;
+
+    // 3. Fall back to filename hints
+    if (strstr(wad_path, "doom2") || strstr(wad_path, "DOOM2") ||
+        strstr(wad_path, "plutonia") || strstr(wad_path, "PLUTONIA") ||
+        strstr(wad_path, "tnt") || strstr(wad_path, "TNT"))
+        return commercial;
+    if (strstr(wad_path, "doomu") || strstr(wad_path, "DOOMU"))
+        return retail;
+    if (strstr(wad_path, "doom1") || strstr(wad_path, "DOOM1"))
+        return shareware;
+
+    return shareware;
+}
+
 //
 // IdentifyVersion
 // Checks availability of IWAD files by name,
@@ -617,21 +717,37 @@ void IdentifyVersion (void)
     char *doomwaddir;
     int iwad_param;
 
+    doomwaddir = getenv("DOOMWADDIR");
+    if (!doomwaddir || strlen(doomwaddir) == 0)
+    {
+#if defined(PSP) || defined(__PSP__)
+        if (psp_game_dir[0] != '\0')
+            doomwaddir = psp_game_dir;
+        else
+            doomwaddir = ".";
+#else
+        doomwaddir = ".";
+#endif
+    }
+
     iwad_param = M_CheckParm("-iwad");
     if (iwad_param && iwad_param < myargc - 1)
     {
         char* custom_iwad = myargv[iwad_param + 1];
         if (check_file_exists(custom_iwad))
         {
-            gamemode = commercial;
-            if (strstr(custom_iwad, "doom1") || strstr(custom_iwad, "DOOM1"))
-                gamemode = shareware;
-            else if (strstr(custom_iwad, "doom.") || strstr(custom_iwad, "DOOM."))
-                gamemode = registered;
-            else if (strstr(custom_iwad, "doomu") || strstr(custom_iwad, "DOOMU"))
-                gamemode = retail;
+            gamemode = DetectWadGameMode(custom_iwad);
             D_AddFile(custom_iwad);
-            strcpy(basedefault, "default.cfg");
+            snprintf(basedefault, sizeof(basedefault), "%s/default.cfg", I_GetSaveDir());
+            return;
+        }
+        char cand[512];
+        snprintf(cand, sizeof(cand), "%s/%s", doomwaddir, custom_iwad);
+        if (check_file_exists(cand))
+        {
+            gamemode = DetectWadGameMode(cand);
+            D_AddFile(strdup(cand));
+            snprintf(basedefault, sizeof(basedefault), "%s/default.cfg", I_GetSaveDir());
             return;
         }
     }
@@ -640,15 +756,9 @@ void IdentifyVersion (void)
     const char* auto_game_wad = I_GetGameWadPath();
     if (auto_game_wad && check_file_exists(auto_game_wad))
     {
-        gamemode = commercial;
-        if (strstr(auto_game_wad, "doom1") || strstr(auto_game_wad, "DOOM1"))
-            gamemode = shareware;
-        else if (strstr(auto_game_wad, "doom.") || strstr(auto_game_wad, "DOOM."))
-            gamemode = registered;
-        else if (strstr(auto_game_wad, "doomu") || strstr(auto_game_wad, "DOOMU"))
-            gamemode = retail;
+        gamemode = DetectWadGameMode(auto_game_wad);
         D_AddFile((char*)auto_game_wad);
-        strcpy(basedefault, "default.cfg");
+        snprintf(basedefault, sizeof(basedefault), "%s/default.cfg", I_GetSaveDir());
         return;
     }
 
@@ -666,6 +776,9 @@ void IdentifyVersion (void)
         "ef0:/PSP/GAME/DOOM"
     };
     const char* psp_wads[] = {
+        "game.wad",
+        "GAME.WAD",
+        "project.wad",
         "doom1.wad",
         "DOOM1.WAD",
         "doom.wad",
@@ -692,17 +805,7 @@ void IdentifyVersion (void)
             snprintf(candidate_path, sizeof(candidate_path), "%s/%s", psp_dirs[d], psp_wads[w]);
             if (check_file_exists(candidate_path))
             {
-                if (strstr(candidate_path, "doom1") || strstr(candidate_path, "DOOM1"))
-                    gamemode = shareware;
-                else if (strstr(candidate_path, "doom2") || strstr(candidate_path, "DOOM2") ||
-                         strstr(candidate_path, "plutonia") || strstr(candidate_path, "PLUTONIA") ||
-                         strstr(candidate_path, "tnt") || strstr(candidate_path, "TNT"))
-                    gamemode = commercial;
-                else if (strstr(candidate_path, "doomu") || strstr(candidate_path, "DOOMU"))
-                    gamemode = retail;
-                else
-                    gamemode = registered;
-
+                gamemode = DetectWadGameMode(candidate_path);
                 D_AddFile(strdup(candidate_path));
                 pspDebugScreenSetTextColor(0xFF00FF00); // Green
                 pspDebugScreenPrintf(" [OK] Found IWAD: %s\n", candidate_path);
@@ -741,13 +844,34 @@ void IdentifyVersion (void)
     exit(0);
 #endif
 
-    doomwaddir = getenv("DOOMWADDIR");
-    if (!doomwaddir || strlen(doomwaddir) == 0)
+    // Bundled game package checks in doomwaddir
+    char* gamewad = malloc(strlen(doomwaddir)+16);
+    sprintf(gamewad, "%s/game.wad", doomwaddir);
+    char* gamewad_u = malloc(strlen(doomwaddir)+16);
+    sprintf(gamewad_u, "%s/GAME.WAD", doomwaddir);
+    char* projwad = malloc(strlen(doomwaddir)+16);
+    sprintf(projwad, "%s/project.wad", doomwaddir);
+
+    if (check_file_exists(gamewad))
     {
-        if (psp_game_dir[0] != '\0')
-            doomwaddir = psp_game_dir;
-        else
-            doomwaddir = ".";
+        gamemode = DetectWadGameMode(gamewad);
+        D_AddFile(gamewad);
+        snprintf(basedefault, sizeof(basedefault), "%s/default.cfg", I_GetSaveDir());
+        return;
+    }
+    if (check_file_exists(gamewad_u))
+    {
+        gamemode = DetectWadGameMode(gamewad_u);
+        D_AddFile(gamewad_u);
+        snprintf(basedefault, sizeof(basedefault), "%s/default.cfg", I_GetSaveDir());
+        return;
+    }
+    if (check_file_exists(projwad))
+    {
+        gamemode = DetectWadGameMode(projwad);
+        D_AddFile(projwad);
+        snprintf(basedefault, sizeof(basedefault), "%s/default.cfg", I_GetSaveDir());
+        return;
     }
 
     // Commercial.
@@ -794,11 +918,7 @@ void IdentifyVersion (void)
     char* doom2fwad_u = malloc(strlen(doomwaddir)+16);
     sprintf(doom2fwad_u, "%s/DOOM2F.WAD", doomwaddir);
 
-    home = getenv("HOME");
-    if (home)
-        sprintf(basedefault, "%s/.doomrc", home);
-    else
-        strcpy(basedefault, "default.cfg");
+    snprintf(basedefault, sizeof(basedefault), "%s/default.cfg", I_GetSaveDir());
 
 
     if (M_CheckParm ("-shdev"))

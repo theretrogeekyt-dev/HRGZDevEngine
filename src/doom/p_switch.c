@@ -129,20 +129,13 @@ void P_InitSwitchList(void)
 		
 	if (alphSwitchList[i].episode <= episode)
 	{
-#if 0	// UNUSED - debug?
-	    int		value;
-			
-	    if (R_CheckTextureNumForName(alphSwitchList[i].name1) < 0)
+	    int tex1 = R_CheckTextureNumForName(alphSwitchList[i].name1);
+	    int tex2 = R_CheckTextureNumForName(alphSwitchList[i].name2);
+	    if (tex1 >= 0 && tex2 >= 0)
 	    {
-		I_Error("Can't find switch texture '%s'!",
-			alphSwitchList[i].name1);
-		continue;
+	        switchlist[index++] = tex1;
+	        switchlist[index++] = tex2;
 	    }
-	    
-	    value = R_TextureNumForName(alphSwitchList[i].name1);
-#endif
-	    switchlist[index++] = R_TextureNumForName(alphSwitchList[i].name1);
-	    switchlist[index++] = R_TextureNumForName(alphSwitchList[i].name2);
 	}
     }
 }

@@ -376,6 +376,17 @@ async function buildWin(project, onLog) {
         }
     }
 
+    // Bundle game WAD and manifest alongside executable
+    const wadSrc = resolveWadPath(project.wadPath);
+    if (wadSrc && fs.existsSync(wadSrc)) {
+        const destWad = path.join(buildDir, 'game.wad');
+        fs.copyFileSync(wadSrc, destWad);
+        onLog(`[ASSETS] Bundled game WAD copied to ${destWad} (${(fs.statSync(destWad).size / (1024 * 1024)).toFixed(2)} MB)\n`);
+    } else {
+        onLog(`[WARN] No WAD file located. Standalone game bundle may require IWAD file.\n`);
+    }
+    fs.writeFileSync(path.join(buildDir, 'game.json'), JSON.stringify(project, null, 2));
+
     return exePath;
 }
 
@@ -454,6 +465,17 @@ async function buildLinux(project, onLog) {
             compiled = true;
         }
     }
+
+    // Bundle game WAD and manifest alongside executable
+    const wadSrc = resolveWadPath(project.wadPath);
+    if (wadSrc && fs.existsSync(wadSrc)) {
+        const destWad = path.join(buildDir, 'game.wad');
+        fs.copyFileSync(wadSrc, destWad);
+        onLog(`[ASSETS] Bundled game WAD copied to ${destWad} (${(fs.statSync(destWad).size / (1024 * 1024)).toFixed(2)} MB)\n`);
+    } else {
+        onLog(`[WARN] No WAD file located. Standalone game bundle may require IWAD file.\n`);
+    }
+    fs.writeFileSync(path.join(buildDir, 'game.json'), JSON.stringify(project, null, 2));
 
     return binPath;
 }
