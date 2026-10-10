@@ -12,6 +12,10 @@
     "build": "node bin/hrgz build",
     "dist": "node bin/hrgz dist",
     "run": "node bin/hrgz run",
+    "package:studio": "node studio/package_studio.js all",
+    "package:mac": "node studio/package_studio.js mac",
+    "package:linux": "node studio/package_studio.js linux",
+    "package:win": "node studio/package_studio.js win",
     "test": "./build/test/doom_test -iwad doom1.wad -warp 1 1 -testframes 50"
   },
   "keywords": [
@@ -24,3 +28,4 @@
   "author": "HRGZDevEngine Team",
   "license": "GPL-2.0"
 }
+

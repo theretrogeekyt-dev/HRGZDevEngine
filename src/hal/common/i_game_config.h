@@ -35,3 +35,4 @@ void I_InitGameConfig(void);
 #endif
 
 #endif // __I_GAME_CONFIG_H__
+

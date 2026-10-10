@@ -267,3 +267,4 @@ server.listen(PORT, '127.0.0.1', () => {
                         `xdg-open "${url}"`;
     exec(openCommand, () => {});
 });
+

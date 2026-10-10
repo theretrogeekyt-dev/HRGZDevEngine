@@ -13,3 +13,4 @@ if %errorlevel% neq 0 (
 
 echo Starting HRGZDevEngine Studio...
 node "%~dp0studio\server.js" %*
+

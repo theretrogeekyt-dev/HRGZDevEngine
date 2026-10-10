@@ -122,19 +122,27 @@ async function main() {
             break;
         }
 
+        case 'package-studio': {
+            const target = args[1] || 'all';
+            console.log(`Packaging HRGZDevEngine Studio application (${target})...`);
+            require('../studio/package_studio');
+            break;
+        }
+
         case 'help':
         default: {
             console.log(`
 HRGZDevEngine - DOOM Engine Game Creation & Distribution CLI
 
 Usage:
-  hrgz studio            Launch the interactive Desktop Studio GUI
-  hrgz init [name]       Scaffold a new game project
-  hrgz inspect [wad]     Inspect WAD lumps, textures, maps and validate assets
-  hrgz build [target]    Compile standalone native game (target: mac)
-  hrgz dist [target]     Package release ZIP with itch.toml manifest
-  hrgz run               Compile and launch the game locally for testing
-  hrgz system            Show host compilers and toolchains
+  hrgz studio                 Launch the interactive Desktop Studio GUI
+  hrgz package-studio [tgt]   Package Studio app into .dmg (mac), .deb (linux), .exe (win)
+  hrgz init [name]            Scaffold a new game project
+  hrgz inspect [wad]          Inspect WAD lumps, textures, maps and validate assets
+  hrgz build [target]         Compile standalone native game (target: mac)
+  hrgz dist [target]          Package release: .dmg (mac), .deb (linux), .zip/.exe (win)
+  hrgz run                    Compile and launch the game locally for testing
+  hrgz system                 Show host compilers and toolchains
 `);
             break;
         }
@@ -145,3 +153,4 @@ main().catch(err => {
     console.error(`[ERROR] ${err.message}`);
     process.exit(1);
 });
+

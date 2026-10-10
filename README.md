@@ -284,8 +284,21 @@ The studio dashboard will open automatically in your browser at `http://127.0.0.
 - **Real-Time Compiler Hub**: Live compiler logs streaming directly to the in-browser terminal console.
 - **One-Click Distribution**: Builds `.zip` releases with `itch.toml` action files and Steam configs.
 
-### 2. Using the Universal CLI (`bin/hrgz`)
-For automated scripting and CI/CD workflows:
+### 2. Dedicated Native Packaging (.dmg, .deb, .exe)
+You can package the **Studio App** or your **Custom Games** into dedicated platform packages:
+
+#### Packaging the Studio App:
+```bash
+# Package all platforms
+npm run package:studio
+
+# Or package individual platforms:
+npm run package:mac    # Generates dist/HRGZDevEngine-Studio-macOS.dmg
+npm run package:linux  # Generates dist/hrgzdevengine-studio_1.0.0_all.deb
+npm run package:win    # Generates dist/HRGZDevEngine-Studio-Windows.exe bundle
+```
+
+#### Packaging Your Standalone Game:
 ```bash
 # Scaffold a new standalone game project
 ./bin/hrgz init "My Great Game"
@@ -293,11 +306,14 @@ For automated scripting and CI/CD workflows:
 # Inspect any WAD file (lumps, maps, palettes, sprites)
 ./bin/hrgz inspect path/to/game.wad
 
-# Compile standalone native game for macOS (.app bundle with bundled assets)
-./bin/hrgz build mac
+# Package game into macOS Apple Disk Image (.dmg)
+./bin/hrgz dist dmg
 
-# Package release distribution ZIP for itch.io / Steam
-./bin/hrgz dist mac
+# Package game into Linux Debian Package (.deb)
+./bin/hrgz dist deb
+
+# Package game into Windows Standalone Executable (.exe)
+./bin/hrgz dist exe
 
 # Launch the game locally for instant gameplay testing
 ./bin/hrgz run

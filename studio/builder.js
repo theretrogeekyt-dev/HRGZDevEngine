@@ -171,28 +171,108 @@ async function packageRelease(project, target, onLog) {
     const safeTitle = project.title.replace(/[^a-zA-Z0-9_-]/g, '_');
     const version = project.version || '1.0.0';
 
-    if (target === 'mac') {
-        const appPath = path.join(REPO_ROOT, 'build', 'projects', project.id, 'mac', `${project.title}.app`);
+    if (target === 'mac' || target === 'dmg') {
+        let appPath = path.join(REPO_ROOT, 'build', 'projects', project.id, 'mac', `${project.title}.app`);
         if (!fs.existsSync(appPath)) {
-            throw new Error(`macOS app bundle not found at ${appPath}. Build macOS first!`);
+            onLog(`[DIST] App bundle not found, compiling '${project.title}' first...\n`);
+            appPath = await buildMac(project, onLog);
         }
 
+        // 1. Build .dmg (Apple Disk Image)
+        const dmgStaging = path.join(REPO_ROOT, 'build', 'projects', project.id, 'dmg_staging');
+        if (fs.existsSync(dmgStaging)) fs.rmSync(dmgStaging, { recursive: true, force: true });
+        ensureDir(dmgStaging);
+
+        fs.cpSync(appPath, path.join(dmgStaging, `${project.title}.app`), { recursive: true });
+        try {
+            fs.symlinkSync('/Applications', path.join(dmgStaging, 'Applications'));
+        } catch {}
+
+        const dmgName = `${safeTitle}-v${version}-macOS.dmg`;
+        const dmgPath = path.join(distDir, dmgName);
+        if (fs.existsSync(dmgPath)) fs.unlinkSync(dmgPath);
+
+        onLog(`[DIST] Creating macOS Apple Disk Image (.dmg) at ${dmgPath}...\n`);
+        await runCommand('hdiutil', ['create', '-volname', project.title, '-srcfolder', dmgStaging, '-ov', '-format', 'UDZO', dmgPath], { cwd: REPO_ROOT }, onLog);
+
+        // Also generate .zip for itch.io / web
         const zipName = `${safeTitle}-v${version}-macOS.zip`;
         const zipPath = path.join(distDir, zipName);
         if (fs.existsSync(zipPath)) fs.unlinkSync(zipPath);
-
         const macBuildDir = path.dirname(appPath);
-        onLog(`[DIST] Zipping macOS application into ${zipPath}...\n`);
         await runCommand('zip', ['-r', '-y', '-X', zipPath, `${project.title}.app`], { cwd: macBuildDir }, onLog);
 
-        // Generate itch.io Butler configuration
-        const itchToml = `[[actions]]
-name = "play"
-path = "${project.title}.app"
-`;
+        const itchToml = `[[actions]]\nname = "play"\npath = "${project.title}.app"\n`;
         fs.writeFileSync(path.join(distDir, 'itch.toml'), itchToml);
 
-        onLog(`[DIST] Package created: ${zipPath} (${(fs.statSync(zipPath).size / (1024*1024)).toFixed(2)} MB)\n`);
+        onLog(`[DIST] macOS .dmg created: ${dmgPath} (${(fs.statSync(dmgPath).size / (1024*1024)).toFixed(2)} MB)\n`);
+        return dmgPath;
+    }
+
+    if (target === 'linux' || target === 'deb') {
+        onLog(`[DIST] Creating Debian Linux package (.deb) for '${project.title}'...\n`);
+        const debStaging = path.join(REPO_ROOT, 'build', 'projects', project.id, 'deb_staging');
+        if (fs.existsSync(debStaging)) fs.rmSync(debStaging, { recursive: true, force: true });
+        ensureDir(debStaging);
+
+        const controlDir = path.join(debStaging, 'control_dir');
+        const dataDir = path.join(debStaging, 'data_dir');
+        ensureDir(controlDir);
+        ensureDir(dataDir);
+
+        const control = `Package: ${project.id}\nVersion: ${version}\nSection: games\nPriority: optional\nArchitecture: all\nMaintainer: ${project.author || 'HRGZDevEngine'}\nDescription: ${project.description || project.title}\n`;
+        fs.writeFileSync(path.join(controlDir, 'control'), control);
+
+        const usrGames = path.join(dataDir, 'usr', 'games');
+        const usrShare = path.join(dataDir, 'usr', 'share', 'games', project.id);
+        const usrApps = path.join(dataDir, 'usr', 'share', 'applications');
+        ensureDir(usrGames);
+        ensureDir(usrShare);
+        ensureDir(usrApps);
+
+        const wadSrc = project.wadPath ? path.resolve(REPO_ROOT, project.wadPath) : path.join(REPO_ROOT, 'doom1.wad');
+        if (fs.existsSync(wadSrc)) {
+            fs.copyFileSync(wadSrc, path.join(usrShare, 'game.wad'));
+        }
+
+        const runner = `#!/bin/sh\nexec /usr/games/${project.id} -iwad /usr/share/games/${project.id}/game.wad "$@"\n`;
+        fs.writeFileSync(path.join(usrGames, project.id), runner);
+        fs.chmodSync(path.join(usrGames, project.id), 0o755);
+
+        const desktop = `[Desktop Entry]\nName=${project.title}\nExec=/usr/games/${project.id}\nType=Application\nCategories=Game;\n`;
+        fs.writeFileSync(path.join(usrApps, `${project.id}.desktop`), desktop);
+
+        const debianBinary = path.join(debStaging, 'debian-binary');
+        fs.writeFileSync(debianBinary, '2.0\n');
+        const controlTar = path.join(debStaging, 'control.tar.gz');
+        const dataTar = path.join(debStaging, 'data.tar.gz');
+
+        await runCommand('tar', ['-czf', controlTar, '-C', controlDir, '.'], { cwd: debStaging }, onLog);
+        await runCommand('tar', ['-czf', dataTar, '-C', dataDir, '.'], { cwd: debStaging }, onLog);
+
+        const debOutput = path.join(distDir, `${project.id}_${version}_all.deb`);
+        await runCommand('ar', ['-q', '-S', debOutput, 'debian-binary', 'control.tar.gz', 'data.tar.gz'], { cwd: debStaging }, onLog);
+
+        onLog(`[DIST] Linux .deb package created: ${debOutput} (${(fs.statSync(debOutput).size / (1024*1024)).toFixed(2)} MB)\n`);
+        return debOutput;
+    }
+
+    if (target === 'win' || target === 'exe') {
+        const winDir = path.join(distDir, `${safeTitle}-Windows`);
+        ensureDir(winDir);
+
+        const wadSrc = project.wadPath ? path.resolve(REPO_ROOT, project.wadPath) : path.join(REPO_ROOT, 'doom1.wad');
+        if (fs.existsSync(wadSrc)) {
+            fs.copyFileSync(wadSrc, path.join(winDir, 'game.wad'));
+        }
+        fs.writeFileSync(path.join(winDir, 'game.json'), JSON.stringify(project, null, 2));
+
+        const zipName = `${safeTitle}-v${version}-Windows.zip`;
+        const zipPath = path.join(distDir, zipName);
+        if (fs.existsSync(zipPath)) fs.unlinkSync(zipPath);
+
+        await runCommand('zip', ['-r', '-y', zipPath, path.basename(winDir)], { cwd: distDir }, onLog);
+        onLog(`[DIST] Windows standalone package created: ${zipPath}\n`);
         return zipPath;
     }
 

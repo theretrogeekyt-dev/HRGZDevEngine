@@ -14,3 +14,4 @@ fi
 
 echo "Starting HRGZDevEngine Studio..."
 exec node "$DIR/studio/server.js" "$@"
+

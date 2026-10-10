@@ -285,14 +285,27 @@
                 <section class="tab-pane" id="tab-publish">
                     <div class="pane-header">
                         <h2>Publishing & Release Packaging</h2>
-                        <p class="pane-desc">Generate release ZIPs for itch.io, Game Jolt, and Steam.</p>
+                        <p class="pane-desc">Generate native distribution packages for macOS (.dmg), Linux (.deb), and Windows (.exe).</p>
                     </div>
 
                     <div class="card">
                         <div class="dist-card-inner">
-                            <h3>One-Click Release Packaging</h3>
-                            <p class="card-desc">Zips your compiled game with bundled assets, licenses, and an itch.io <code>itch.toml</code> action manifest.</p>
-                            <button class="btn btn-success" onclick="distTarget('mac')">Create macOS Release (.zip)</button>
+                            <h3>Standalone Game Packaging</h3>
+                            <p class="card-desc">Packages your compiled game with bundled assets, licenses, and metadata into native installers and archives:</p>
+                            <div class="build-controls">
+                                <button class="btn btn-primary" onclick="distTarget('dmg')">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 8v8"></path><path d="M8 12h8"></path></svg>
+                                    Create macOS Apple Disk Image (.dmg)
+                                </button>
+                                <button class="btn btn-secondary" onclick="distTarget('deb')">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
+                                    Create Linux Debian Package (.deb)
+                                </button>
+                                <button class="btn btn-success" onclick="distTarget('exe')">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+                                    Create Windows Standalone (.exe)
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -303,3 +316,4 @@
     <script src="app.js"></script>
 </body>
 </html>
+
