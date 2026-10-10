@@ -22,6 +22,11 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: Build macOS DOOM Executable
         run: |
           mkdir -p build/mac
@@ -107,11 +112,17 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: Setup MSYS2 MinGW-w64
         uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
           update: false
+          path-type: inherit
           install: mingw-w64-x86_64-gcc zip
 
       - name: Build Windows DOOM Executable
@@ -138,8 +149,16 @@ jobs:
       - name: Package HRGZDevEngine Studio (.exe)
         shell: msys2 {0}
         run: |
-          node studio/package_studio.js win
-          cp dist/HRGZDevEngine-Studio-Windows.zip .
+          mkdir -p dist/HRGZDevEngine-Studio-Windows
+          gcc -O3 -mwindows studio/native/win/studio_win.c \
+            -o dist/HRGZDevEngine-Studio-Windows/HRGZDevEngine-Studio.exe \
+            -lkernel32 -luser32 -lshell32
+          cp -r studio dist/HRGZDevEngine-Studio-Windows/
+          cp -r bin dist/HRGZDevEngine-Studio-Windows/
+          cp hrgz-studio.bat dist/HRGZDevEngine-Studio-Windows/HRGZDevEngine-Studio.bat
+          cd dist
+          zip -r -y ../HRGZDevEngine-Studio-Windows.zip HRGZDevEngine-Studio-Windows
+          cd ..
 
       - name: Upload Windows Artifact
         uses: actions/upload-artifact@v4
@@ -162,6 +181,11 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
 
       - name: Install Build Dependencies
         run: |
