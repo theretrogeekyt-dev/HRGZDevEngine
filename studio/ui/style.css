@@ -143,6 +143,26 @@ body {
     box-shadow: 0 0 12px var(--success-glow);
 }
 
+.btn-accent {
+    background: #f97316;
+    color: #ffffff;
+    border-color: #ea580c;
+}
+.btn-accent:hover {
+    background: #fb923c;
+    box-shadow: 0 0 12px rgba(249, 115, 22, 0.4);
+}
+
+.btn-ghost {
+    background: transparent;
+    color: var(--text-muted);
+    border-color: var(--border-subtle);
+}
+.btn-ghost:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-main);
+}
+
 .btn-sm {
     padding: 6px 12px;
     font-size: 12px;

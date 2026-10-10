@@ -234,8 +234,19 @@ function clearConsole() {
     termLogs.textContent = 'Console cleared.\n';
 }
 
-// Run / Test Game
+// Run / Test Game (Toggle Play / Stop)
 btnRunGame.addEventListener('click', async () => {
+    if (btnRunGame.classList.contains('running')) {
+        try {
+            await fetch('/api/stop', { method: 'POST' });
+            btnRunGame.classList.remove('running');
+            btnRunGame.textContent = 'Play / Test Game';
+        } catch (err) {
+            alert('Stop error: ' + err.message);
+        }
+        return;
+    }
+
     const project = readForm();
     try {
         const res = await fetch('/api/run', {

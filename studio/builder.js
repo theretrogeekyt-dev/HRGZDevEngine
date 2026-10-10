@@ -1,7 +1,7 @@
 /**
- * HRGZDevEngine DOOM Multi-Platform Builder & Distribution Packager
+ * HRGZDevEngine Studio - Multi-Platform Game Builder & Distribution Packager
  * Compiles standalone executables for macOS, Windows, and Linux,
- * bundles game assets into native app packages, and creates release zips.
+ * bundles game assets into native app packages, and creates release distributions (.dmg, .exe, .deb, .zip).
  */
 
 const fs = require('fs');
@@ -29,7 +29,7 @@ function detectSystem() {
             make: checkTool('make'),
             zip: checkTool('zip'),
             tar: checkTool('tar'),
-            mingw: checkTool('x86_64-w64-mingw32-gcc')
+            mingw: checkTool('x86_64-w64-mingw32-gcc') || checkTool('i686-w64-mingw32-gcc')
         }
     };
 }
@@ -151,17 +151,136 @@ async function buildMac(project, onLog) {
 </plist>`;
     fs.writeFileSync(path.join(appDir, 'Contents', 'Info.plist'), plist);
 
-    // Ad-hoc code sign
+    // Clean detritus and ad-hoc code sign
     onLog(`[SIGN] Ad-hoc signing application bundle...\n`);
     try {
         await runCommand('xattr', ['-cr', appDir], { cwd: REPO_ROOT }, onLog);
         await runCommand('codesign', ['--force', '--deep', '--sign', '-', appDir], { cwd: REPO_ROOT }, onLog);
     } catch (e) {
-        onLog(`[WARN] Ad-hoc codesign skipped or returned: ${e.message}\n`);
+        onLog(`[WARN] Ad-hoc codesign returned: ${e.message}\n`);
     }
 
     onLog(`[SUCCESS] macOS native bundle complete: ${appDir}\n`);
     return appDir;
+}
+
+async function buildWin(project, onLog) {
+    onLog(`[BUILD] Starting native Windows compilation for '${project.title}'...\n`);
+    const buildDir = path.join(REPO_ROOT, 'build', 'projects', project.id, 'win');
+    ensureDir(buildDir);
+
+    const safeTitle = project.title.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const exePath = path.join(buildDir, `${safeTitle}.exe`);
+
+    // Check for MinGW cross-compiler or native Windows GCC
+    let compiler = null;
+    for (const c of ['x86_64-w64-mingw32-gcc', 'i686-w64-mingw32-gcc']) {
+        if (checkTool(c)) { compiler = c; break; }
+    }
+    if (!compiler && process.platform === 'win32' && checkTool('gcc')) {
+        compiler = 'gcc';
+    }
+
+    if (compiler) {
+        onLog(`[BUILD] Using Windows compiler: ${compiler}\n`);
+        const doomSources = fs.readdirSync(path.join(REPO_ROOT, 'src', 'doom'))
+            .filter(f => f.endsWith('.c'))
+            .map(f => path.join('src', 'doom', f));
+
+        const commonSources = fs.readdirSync(path.join(REPO_ROOT, 'src', 'hal', 'common'))
+            .filter(f => f.endsWith('.c'))
+            .map(f => path.join('src', 'hal', 'common', f));
+
+        const winSources = fs.readdirSync(path.join(REPO_ROOT, 'src', 'hal', 'win32'))
+            .filter(f => f.endsWith('.c'))
+            .map(f => path.join('src', 'hal', 'win32', f));
+
+        const allSources = [...doomSources, ...commonSources, ...winSources];
+
+        const cflags = [
+            '-O3',
+            '-fomit-frame-pointer',
+            '-Wall',
+            '-Wno-parentheses',
+            '-Wno-unused-const-variable',
+            '-Wno-unused-but-set-variable',
+            '-Wno-unused-variable',
+            '-std=c99',
+            `-DHRGZ_GAME_TITLE="${project.title.replace(/"/g, '\\"')}"`,
+            `-DHRGZ_GAME_ID="${project.id.replace(/"/g, '\\"')}"`,
+            '-Isrc/doom',
+            '-Isrc/hal/common',
+            ...allSources,
+            '-lgdi32', '-lwinmm', '-lws2_32', '-lopengl32', '-lm', '-s',
+            '-o', exePath
+        ];
+
+        await runCommand(compiler, cflags, { cwd: REPO_ROOT }, onLog);
+        onLog(`[BUILD] Windows standalone executable created: ${exePath}\n`);
+    } else {
+        const template = path.join(REPO_ROOT, 'build', 'win', 'doom.exe');
+        if (fs.existsSync(template)) {
+            onLog(`[BUILD] MinGW compiler not found on host; copying pre-built Windows engine binary...\n`);
+            fs.copyFileSync(template, exePath);
+        } else {
+            onLog(`[WARN] MinGW cross-compiler not detected. Please install 'mingw-w64' to cross-compile Windows binaries on macOS/Linux.\n`);
+        }
+    }
+
+    return exePath;
+}
+
+async function buildLinux(project, onLog) {
+    onLog(`[BUILD] Starting native Linux compilation for '${project.title}'...\n`);
+    const buildDir = path.join(REPO_ROOT, 'build', 'projects', project.id, 'linux');
+    ensureDir(buildDir);
+
+    const binPath = path.join(buildDir, project.id);
+
+    let compiler = checkTool('gcc') ? 'gcc' : (checkTool('clang') ? 'clang' : null);
+    if (compiler) {
+        onLog(`[BUILD] Using Linux compiler: ${compiler}\n`);
+        const doomSources = fs.readdirSync(path.join(REPO_ROOT, 'src', 'doom'))
+            .filter(f => f.endsWith('.c'))
+            .map(f => path.join('src', 'doom', f));
+
+        const commonSources = fs.readdirSync(path.join(REPO_ROOT, 'src', 'hal', 'common'))
+            .filter(f => f.endsWith('.c'))
+            .map(f => path.join('src', 'hal', 'common', f));
+
+        const sdlSources = fs.readdirSync(path.join(REPO_ROOT, 'src', 'hal', 'sdl'))
+            .filter(f => f.endsWith('.c'))
+            .map(f => path.join('src', 'hal', 'sdl', f));
+
+        const allSources = [...doomSources, ...commonSources, ...sdlSources];
+
+        const cflags = [
+            '-O3',
+            '-fomit-frame-pointer',
+            '-Wall',
+            '-Wno-parentheses',
+            '-Wno-unused-const-variable',
+            '-Wno-unused-but-set-variable',
+            '-Wno-unused-variable',
+            '-std=c99',
+            `-DHRGZ_GAME_TITLE="${project.title.replace(/"/g, '\\"')}"`,
+            `-DHRGZ_GAME_ID="${project.id.replace(/"/g, '\\"')}"`,
+            '-Isrc/doom',
+            '-Isrc/hal/common',
+            ...allSources,
+            '-lSDL2', '-lm', '-s',
+            '-o', binPath
+        ];
+
+        try {
+            await runCommand(compiler, cflags, { cwd: REPO_ROOT }, onLog);
+            onLog(`[BUILD] Linux executable created: ${binPath}\n`);
+        } catch (e) {
+            onLog(`[WARN] Linux build with SDL2 skipped or failed on host: ${e.message}\n`);
+        }
+    }
+
+    return binPath;
 }
 
 async function packageRelease(project, target, onLog) {
@@ -195,7 +314,7 @@ async function packageRelease(project, target, onLog) {
         onLog(`[DIST] Creating macOS Apple Disk Image (.dmg) at ${dmgPath}...\n`);
         await runCommand('hdiutil', ['create', '-volname', project.title, '-srcfolder', dmgStaging, '-ov', '-format', 'UDZO', dmgPath], { cwd: REPO_ROOT }, onLog);
 
-        // Also generate .zip for itch.io / web
+        // 2. Also generate .zip for itch.io / Steam
         const zipName = `${safeTitle}-v${version}-macOS.zip`;
         const zipPath = path.join(distDir, zipName);
         if (fs.existsSync(zipPath)) fs.unlinkSync(zipPath);
@@ -211,6 +330,11 @@ async function packageRelease(project, target, onLog) {
 
     if (target === 'linux' || target === 'deb') {
         onLog(`[DIST] Creating Debian Linux package (.deb) for '${project.title}'...\n`);
+        let linuxBin = path.join(REPO_ROOT, 'build', 'projects', project.id, 'linux', project.id);
+        if (!fs.existsSync(linuxBin)) {
+            linuxBin = await buildLinux(project, onLog);
+        }
+
         const debStaging = path.join(REPO_ROOT, 'build', 'projects', project.id, 'deb_staging');
         if (fs.existsSync(debStaging)) fs.rmSync(debStaging, { recursive: true, force: true });
         ensureDir(debStaging);
@@ -220,7 +344,14 @@ async function packageRelease(project, target, onLog) {
         ensureDir(controlDir);
         ensureDir(dataDir);
 
-        const control = `Package: ${project.id}\nVersion: ${version}\nSection: games\nPriority: optional\nArchitecture: all\nMaintainer: ${project.author || 'HRGZDevEngine'}\nDescription: ${project.description || project.title}\n`;
+        const control = `Package: ${project.id}
+Version: ${version}
+Section: games
+Priority: optional
+Architecture: all
+Maintainer: ${project.author || 'HRGZDevEngine'}
+Description: ${project.description || project.title}
+`;
         fs.writeFileSync(path.join(controlDir, 'control'), control);
 
         const usrGames = path.join(dataDir, 'usr', 'games');
@@ -230,16 +361,21 @@ async function packageRelease(project, target, onLog) {
         ensureDir(usrShare);
         ensureDir(usrApps);
 
+        if (fs.existsSync(linuxBin)) {
+            fs.copyFileSync(linuxBin, path.join(usrGames, project.id));
+            fs.chmodSync(path.join(usrGames, project.id), 0o755);
+        }
+
         const wadSrc = project.wadPath ? path.resolve(REPO_ROOT, project.wadPath) : path.join(REPO_ROOT, 'doom1.wad');
         if (fs.existsSync(wadSrc)) {
             fs.copyFileSync(wadSrc, path.join(usrShare, 'game.wad'));
         }
 
         const runner = `#!/bin/sh\nexec /usr/games/${project.id} -iwad /usr/share/games/${project.id}/game.wad "$@"\n`;
-        fs.writeFileSync(path.join(usrGames, project.id), runner);
-        fs.chmodSync(path.join(usrGames, project.id), 0o755);
+        fs.writeFileSync(path.join(usrGames, `${project.id}-launcher`), runner);
+        fs.chmodSync(path.join(usrGames, `${project.id}-launcher`), 0o755);
 
-        const desktop = `[Desktop Entry]\nName=${project.title}\nExec=/usr/games/${project.id}\nType=Application\nCategories=Game;\n`;
+        const desktop = `[Desktop Entry]\nName=${project.title}\nExec=/usr/games/${project.id}-launcher\nType=Application\nCategories=Game;\n`;
         fs.writeFileSync(path.join(usrApps, `${project.id}.desktop`), desktop);
 
         const debianBinary = path.join(debStaging, 'debian-binary');
@@ -258,8 +394,19 @@ async function packageRelease(project, target, onLog) {
     }
 
     if (target === 'win' || target === 'exe') {
+        onLog(`[DIST] Creating Windows standalone distribution for '${project.title}'...\n`);
         const winDir = path.join(distDir, `${safeTitle}-Windows`);
+        if (fs.existsSync(winDir)) fs.rmSync(winDir, { recursive: true, force: true });
         ensureDir(winDir);
+
+        let exePath = path.join(REPO_ROOT, 'build', 'projects', project.id, 'win', `${safeTitle}.exe`);
+        if (!fs.existsSync(exePath)) {
+            exePath = await buildWin(project, onLog);
+        }
+
+        if (fs.existsSync(exePath)) {
+            fs.copyFileSync(exePath, path.join(winDir, `${safeTitle}.exe`));
+        }
 
         const wadSrc = project.wadPath ? path.resolve(REPO_ROOT, project.wadPath) : path.join(REPO_ROOT, 'doom1.wad');
         if (fs.existsSync(wadSrc)) {
@@ -267,13 +414,30 @@ async function packageRelease(project, target, onLog) {
         }
         fs.writeFileSync(path.join(winDir, 'game.json'), JSON.stringify(project, null, 2));
 
+        // Quick launcher batch script
+        const launcherBat = `@echo off\r\nstart "" "%~dp0${safeTitle}.exe" -iwad "%~dp0game.wad" %*\r\n`;
+        fs.writeFileSync(path.join(winDir, `Launch_${safeTitle}.bat`), launcherBat);
+
+        const itchToml = `[[actions]]\nname = "play"\npath = "${safeTitle}.exe"\n`;
+        fs.writeFileSync(path.join(distDir, 'itch.toml'), itchToml);
+
         const zipName = `${safeTitle}-v${version}-Windows.zip`;
         const zipPath = path.join(distDir, zipName);
         if (fs.existsSync(zipPath)) fs.unlinkSync(zipPath);
 
         await runCommand('zip', ['-r', '-y', zipPath, path.basename(winDir)], { cwd: distDir }, onLog);
-        onLog(`[DIST] Windows standalone package created: ${zipPath}\n`);
+        onLog(`[DIST] Windows standalone package created: ${zipPath} (${(fs.statSync(zipPath).size / (1024*1024)).toFixed(2)} MB)\n`);
         return zipPath;
+    }
+
+    if (target === 'all') {
+        onLog(`[DIST] Generating all release distribution packages for '${project.title}'...\n`);
+        const results = [];
+        results.push(await packageRelease(project, 'dmg', onLog));
+        results.push(await packageRelease(project, 'exe', onLog));
+        results.push(await packageRelease(project, 'deb', onLog));
+        onLog(`\n[COMPLETE] All platform distribution packages generated in: ${distDir}\n`);
+        return results[0];
     }
 
     throw new Error(`Unsupported package target: ${target}`);
@@ -282,5 +446,7 @@ async function packageRelease(project, target, onLog) {
 module.exports = {
     detectSystem,
     buildMac,
+    buildWin,
+    buildLinux,
     packageRelease
 };

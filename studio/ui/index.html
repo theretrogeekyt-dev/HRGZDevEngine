@@ -119,17 +119,24 @@
                             <div class="action-list">
                                 <div class="action-row">
                                     <div>
-                                        <strong>macOS Native .app</strong>
-                                        <div class="text-muted">Metal / Cocoa self-contained bundle with bundled game assets</div>
+                                        <strong>macOS Apple Disk Image (.dmg)</strong>
+                                        <div class="text-muted">Metal / Cocoa standalone desktop bundle in an Apple Disk Image</div>
                                     </div>
-                                    <button class="btn btn-sm btn-primary" onclick="buildTarget('mac')">Compile</button>
+                                    <button class="btn btn-sm btn-primary" onclick="distTarget('dmg')">Package DMG</button>
                                 </div>
                                 <div class="action-row">
                                     <div>
-                                        <strong>Release Zip Package</strong>
-                                        <div class="text-muted">Direct zip export with itch.toml manifest for game publishing</div>
+                                        <strong>Windows Standalone (.exe)</strong>
+                                        <div class="text-muted">Win32 executable bundle ready for Steam or itch.io distribution</div>
                                     </div>
-                                    <button class="btn btn-sm btn-secondary" onclick="distTarget('mac')">Package Zip</button>
+                                    <button class="btn btn-sm btn-success" onclick="distTarget('exe')">Package EXE</button>
+                                </div>
+                                <div class="action-row">
+                                    <div>
+                                        <strong>Linux Debian Package (.deb)</strong>
+                                        <div class="text-muted">Debian package with /usr/games/ binary and .desktop menu launcher</div>
+                                    </div>
+                                    <button class="btn btn-sm btn-secondary" onclick="distTarget('deb')">Package DEB</button>
                                 </div>
                             </div>
                         </div>
@@ -265,8 +272,11 @@
 
                     <div class="card">
                         <div class="build-controls">
-                            <button class="btn btn-primary" onclick="buildTarget('mac')">Compile macOS Native (.app)</button>
-                            <button class="btn btn-secondary" onclick="clearConsole()">Clear Logs</button>
+                            <button class="btn btn-primary" onclick="buildTarget('mac')">Compile macOS (.app)</button>
+                            <button class="btn btn-secondary" onclick="buildTarget('win')">Compile Windows (.exe)</button>
+                            <button class="btn btn-secondary" onclick="buildTarget('linux')">Compile Linux</button>
+                            <button class="btn btn-accent" onclick="buildTarget('all')">Compile All</button>
+                            <button class="btn btn-ghost" onclick="clearConsole()">Clear Logs</button>
                         </div>
 
                         <div class="terminal-window">
@@ -276,7 +286,7 @@
                                 <span class="term-dot dot-green"></span>
                                 <span class="term-title">Compilation Output Stream</span>
                             </div>
-                            <pre class="terminal-body" id="termLogs">Ready to compile. Click 'Compile macOS Native' to start build.</pre>
+                            <pre class="terminal-body" id="termLogs">Ready to compile. Choose a target above to start build.</pre>
                         </div>
                     </div>
                 </section>
@@ -295,15 +305,19 @@
                             <div class="build-controls">
                                 <button class="btn btn-primary" onclick="distTarget('dmg')">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 8v8"></path><path d="M8 12h8"></path></svg>
-                                    Create macOS Apple Disk Image (.dmg)
-                                </button>
-                                <button class="btn btn-secondary" onclick="distTarget('deb')">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
-                                    Create Linux Debian Package (.deb)
+                                    macOS Apple Disk Image (.dmg)
                                 </button>
                                 <button class="btn btn-success" onclick="distTarget('exe')">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
-                                    Create Windows Standalone (.exe)
+                                    Windows Standalone (.exe)
+                                </button>
+                                <button class="btn btn-secondary" onclick="distTarget('deb')">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
+                                    Linux Debian Package (.deb)
+                                </button>
+                                <button class="btn btn-accent" onclick="distTarget('all')">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                                    Package All Formats
                                 </button>
                             </div>
                         </div>

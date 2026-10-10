@@ -325,40 +325,20 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Download macOS Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: HRGZDevEngine-DOOM-macOS
-
       - name: Download macOS Studio Artifact
         uses: actions/download-artifact@v4
         with:
           name: HRGZDevEngine-Studio-macOS
-
-      - name: Download Windows Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: HRGZDevEngine-DOOM-Windows
 
       - name: Download Windows Studio Artifact
         uses: actions/download-artifact@v4
         with:
           name: HRGZDevEngine-Studio-Windows
 
-      - name: Download Linux Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: HRGZDevEngine-DOOM-Linux-SDL2
-
       - name: Download Linux Studio Artifact
         uses: actions/download-artifact@v4
         with:
           name: hrgzdevengine-studio-deb
-
-      - name: Download PSP Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: HRGZDevEngine-DOOM-PSP
 
       - name: Generate Release Notes & Changelog
         run: |
@@ -370,30 +350,32 @@ jobs:
           fi
 
           COMMIT_SHORT=$(git rev-parse --short HEAD)
-          TITLE="0.0.1.${{ github.run_number }} - Update (${COMMIT_SHORT})"
+          TITLE="HRGZDevEngine Studio ${VER} (${COMMIT_SHORT})"
 
           echo "RELEASE_TAG=$VER" >> $GITHUB_ENV
           echo "RELEASE_TITLE=$TITLE" >> $GITHUB_ENV
 
           cat << 'EOF' > release_notes.md
-          # HRGZDevEngine DOOM & Studio — Release
+          # HRGZDevEngine Studio — Release
 
-          ### 🛠️ HRGZDevEngine Studio Downloads (Game Creation & Distribution System)
+          ### 🚀 Official Studio Distribution Packages
+          The All-in-One Game Creation, Compilation & Distribution System powered by the DOOM engine.
+
           | Platform | Package | Format | Description |
           |---|---|---|---|
-          | 🍏 **macOS** | [`HRGZDevEngine-Studio-macOS.dmg`](https://github.com/${{ github.repository }}/releases/download/latest/HRGZDevEngine-Studio-macOS.dmg) | Apple Disk Image (`.dmg`) | Native Cocoa/WebKit Desktop App |
-          | 🪟 **Windows** | [`HRGZDevEngine-Studio-Windows.zip`](https://github.com/${{ github.repository }}/releases/download/latest/HRGZDevEngine-Studio-Windows.zip) | Executable Bundle (`.exe`) | Native Win32 GUI (`HRGZDevEngine-Studio.exe`) |
+          | 🍏 **macOS** | [`HRGZDevEngine-Studio-macOS.dmg`](https://github.com/${{ github.repository }}/releases/download/latest/HRGZDevEngine-Studio-macOS.dmg) | Apple Disk Image (`.dmg`) | Standalone Cocoa/WebKit Desktop App |
+          | 🪟 **Windows** | [`HRGZDevEngine-Studio-Windows.zip`](https://github.com/${{ github.repository }}/releases/download/latest/HRGZDevEngine-Studio-Windows.zip) | Executable Bundle (`.exe`) | Standalone Win32 GUI (`HRGZDevEngine-Studio.exe`) |
           | 🐧 **Linux** | [`hrgzdevengine-studio_1.0.0_all.deb`](https://github.com/${{ github.repository }}/releases/download/latest/hrgzdevengine-studio_1.0.0_all.deb) | Debian Package (`.deb`) | Native `.desktop` entry & system CLI |
 
           ---
 
-          ### 📦 Built-In Engine Downloads (DOOM Ports)
-          | Platform | Package | Driver Stack |
-          |---|---|---|
-          | 🍏 **macOS** | [`HRGZDevEngine-DOOM-macOS.zip`](https://github.com/${{ github.repository }}/releases/download/latest/HRGZDevEngine-DOOM-macOS.zip) | Metal HW Accel + Cocoa + AudioToolbox |
-          | 🪟 **Windows** | [`HRGZDevEngine-DOOM-Windows.zip`](https://github.com/${{ github.repository }}/releases/download/latest/HRGZDevEngine-DOOM-Windows.zip) | Win32 + OpenGL HW Accel + WinMM + Winsock2 |
-          | 🐧 **Linux** | [`HRGZDevEngine-DOOM-Linux-SDL2.zip`](https://github.com/${{ github.repository }}/releases/download/latest/HRGZDevEngine-DOOM-Linux-SDL2.zip) | SDL2 Driver + Software Audio Mixer |
-          | 🎮 **PlayStation Portable** | [`HRGZDevEngine-DOOM-PSP.zip`](https://github.com/${{ github.repository }}/releases/download/latest/HRGZDevEngine-DOOM-PSP.zip) | PSP eDRAM VRAM + 480x272 16:9 + libpspaudio |
+          ### ✨ Key Studio Features
+          - **All-in-One Distribution Hub**: Dedicated desktop app to design, compile, and distribute standalone retro games powered by the DOOM engine.
+          - **One-Click Native Export**: Packages your custom games directly into macOS Apple Disk Images (`.dmg`), Windows standalone executables (`.exe`), and Linux Debian packages (`.deb`).
+          - **Integrated Asset Pipeline**: Instant WAD analysis, lump inspection, texture validation, and sound/music indexing.
+          - **Multi-Resolution Presentation**: True 16:9 widescreen rendering, dynamic scaling (720p, 1080p, 1440p, 4K, 480p), and tear-free vertical sync.
+          - **Zero External Runtime Dependencies**: Standalone game packages run out-of-the-box on macOS (Metal), Windows (OpenGL/Win32), and Linux (SDL2).
+          - **Distribution-Ready**: Generates `itch.toml` action files and Steam configs for immediate publishing.
 
           ---
 
@@ -405,22 +387,6 @@ jobs:
           git log -n 12 --pretty=format:"- **%s** ([%h](https://github.com/${{ github.repository }}/commit/%H))" --no-merges >> release_notes.md
           echo "" >> release_notes.md
 
-          cat << 'EOF' >> release_notes.md
-
-          ---
-
-          ### ✨ Key Features
-          - **All-in-One Studio Distribution System**: Dedicated visual app (.dmg for macOS, .exe for Windows, .deb for Linux) to create, compile, and distribute custom DOOM-engine games
-          - **Multi-Resolution Display Output**: Dynamic scaling for 720p HD, 1080p FHD, 1440p QHD, 4K UHD, and 480p with live in-game Options Menu, CLI flags (-res/-1080p/-4k/-scale), and Alt+Enter/F11 fullscreen hotkeys
-          - **Hardware-Accelerated Rendering**: Native Apple Metal (macOS) and OpenGL (Windows) streaming presentation
-          - **16:9 True Widescreen**: 426x200 sub-pixel resolution scaled to modern displays with extended horizontal field of view
-          - **Frame Refresh & Clearing System**: Double-buffered frame clearing and tear-free vertical sync
-          - **Dual Audio Subsystem**: High-precision 16-bit software mixer sound effects + authentic General MIDI music
-          - **Gamepad Controller Support**: Unified twin-stick support for PlayStation (DualSense, DualShock 4) and Xbox controllers
-          - **Integrated IP Multiplayer**: UDP lobby system, peer-to-peer matchmaking, and in-game server hosting
-          - **Automated Validation**: Regression-tested against canonical E1M1 playsim frame suites
-          EOF
-
       - name: Create or Update GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -431,10 +397,6 @@ jobs:
             HRGZDevEngine-Studio-macOS.dmg
             HRGZDevEngine-Studio-Windows.zip
             hrgzdevengine-studio_1.0.0_all.deb
-            HRGZDevEngine-DOOM-macOS.zip
-            HRGZDevEngine-DOOM-Windows.zip
-            HRGZDevEngine-DOOM-Linux-SDL2.zip
-            HRGZDevEngine-DOOM-PSP.zip
           draft: false
           prerelease: false
           make_latest: true

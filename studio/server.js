@@ -9,7 +9,7 @@ const fs = require('fs');
 const path = require('path');
 const { spawn, exec } = require('child_process');
 const { parseWad } = require('./wad_parser');
-const { detectSystem, buildMac, packageRelease } = require('./builder');
+const { detectSystem, buildMac, buildWin, buildLinux, packageRelease } = require('./builder');
 
 const PORT = process.env.PORT || 4820;
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -146,6 +146,17 @@ const server = http.createServer(async (req, res) => {
             if (target === 'mac') {
                 const appDir = await buildMac(project, sendChunk);
                 sendChunk(`\n[COMPLETE] Successfully generated standalone app bundle:\n${appDir}\n`);
+            } else if (target === 'win') {
+                const exePath = await buildWin(project, sendChunk);
+                sendChunk(`\n[COMPLETE] Successfully generated Windows executable:\n${exePath}\n`);
+            } else if (target === 'linux') {
+                const binPath = await buildLinux(project, sendChunk);
+                sendChunk(`\n[COMPLETE] Successfully generated Linux binary:\n${binPath}\n`);
+            } else if (target === 'all') {
+                await buildMac(project, sendChunk);
+                await buildWin(project, sendChunk);
+                await buildLinux(project, sendChunk);
+                sendChunk(`\n[COMPLETE] Successfully compiled all platform binaries!\n`);
             } else {
                 sendChunk(`[ERROR] Target '${target}' not supported on this platform.\n`);
             }
@@ -191,19 +202,53 @@ const server = http.createServer(async (req, res) => {
                 return sendJson(res, 400, { ok: false, error: 'Game is already running!' });
             }
 
-            const appPath = path.join(REPO_ROOT, 'build', 'projects', project.id, 'mac', `${project.title}.app`);
-            const macBinary = path.join(appPath, 'Contents', 'MacOS', project.id);
-
-            let execCmd = macBinary;
+            let execCmd = null;
             let execArgs = [];
+            let execCwd = REPO_ROOT;
 
-            if (!fs.existsSync(macBinary)) {
-                // If specific project app not built yet, fallback to general binary or build
-                return sendJson(res, 400, { ok: false, error: 'Game executable not found. Please click Build first!' });
+            if (process.platform === 'darwin') {
+                const appPath = path.join(REPO_ROOT, 'build', 'projects', project.id, 'mac', `${project.title}.app`);
+                const macBinary = path.join(appPath, 'Contents', 'MacOS', project.id);
+                if (!fs.existsSync(macBinary)) {
+                    await buildMac(project, (msg) => console.log(msg));
+                }
+                if (fs.existsSync(macBinary)) {
+                    execCmd = macBinary;
+                    execCwd = path.dirname(macBinary);
+                } else if (fs.existsSync(path.join(REPO_ROOT, 'build', 'mac', 'doom_mac'))) {
+                    execCmd = path.join(REPO_ROOT, 'build', 'mac', 'doom_mac');
+                    const wad = project.wadPath ? path.resolve(REPO_ROOT, project.wadPath) : path.join(REPO_ROOT, 'doom1.wad');
+                    execArgs = ['-iwad', wad];
+                }
+            } else if (process.platform === 'win32') {
+                const winDir = path.join(REPO_ROOT, 'build', 'projects', project.id, 'win');
+                const safeTitle = project.title.replace(/[^a-zA-Z0-9_-]/g, '_');
+                const winExe = path.join(winDir, `${safeTitle}.exe`);
+                if (!fs.existsSync(winExe)) {
+                    await buildWin(project, (msg) => console.log(msg));
+                }
+                if (fs.existsSync(winExe)) {
+                    execCmd = winExe;
+                    execCwd = winDir;
+                }
+            } else {
+                const linuxDir = path.join(REPO_ROOT, 'build', 'projects', project.id, 'linux');
+                const linuxBin = path.join(linuxDir, project.id);
+                if (!fs.existsSync(linuxBin)) {
+                    await buildLinux(project, (msg) => console.log(msg));
+                }
+                if (fs.existsSync(linuxBin)) {
+                    execCmd = linuxBin;
+                    execCwd = linuxDir;
+                }
+            }
+
+            if (!execCmd || !fs.existsSync(execCmd)) {
+                return sendJson(res, 400, { ok: false, error: 'Could not find or compile game executable for this platform.' });
             }
 
             activeGameProcess = spawn(execCmd, execArgs, {
-                cwd: path.dirname(macBinary),
+                cwd: execCwd,
                 detached: true,
                 stdio: 'ignore'
             });

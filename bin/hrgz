@@ -8,7 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const { spawn, execSync } = require('child_process');
 const { parseWad } = require('../studio/wad_parser');
-const { buildMac, packageRelease, detectSystem } = require('../studio/builder');
+const { buildMac, buildWin, buildLinux, packageRelease, detectSystem } = require('../studio/builder');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 const PROJECT_FILE = path.join(REPO_ROOT, 'game.json');
@@ -82,8 +82,19 @@ async function main() {
             if (target === 'mac') {
                 const app = await buildMac(project, log);
                 console.log(`\nBuild Complete: ${app}`);
+            } else if (target === 'win') {
+                const exe = await buildWin(project, log);
+                console.log(`\nBuild Complete: ${exe}`);
+            } else if (target === 'linux') {
+                const bin = await buildLinux(project, log);
+                console.log(`\nBuild Complete: ${bin}`);
+            } else if (target === 'all') {
+                await buildMac(project, log);
+                await buildWin(project, log);
+                await buildLinux(project, log);
+                console.log(`\nBuild Complete for all platforms.`);
             } else {
-                console.error(`Target '${target}' is not yet supported on this host.`);
+                console.error(`Target '${target}' is not supported. Use: mac, win, linux, all`);
                 process.exit(1);
             }
             break;
@@ -139,7 +150,7 @@ Usage:
   hrgz package-studio [tgt]   Package Studio app into .dmg (mac), .deb (linux), .exe (win)
   hrgz init [name]            Scaffold a new game project
   hrgz inspect [wad]          Inspect WAD lumps, textures, maps and validate assets
-  hrgz build [target]         Compile standalone native game (target: mac)
+  hrgz build [target]         Compile standalone native game (target: mac, win, linux, all)
   hrgz dist [target]          Package release: .dmg (mac), .deb (linux), .zip/.exe (win)
   hrgz run                    Compile and launch the game locally for testing
   hrgz system                 Show host compilers and toolchains

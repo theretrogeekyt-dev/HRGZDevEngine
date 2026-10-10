@@ -1,55 +1,33 @@
-# HRGZDevEngine DOOM Source Port
+# HRGZDevEngine Studio
+### All-in-One Game Creation, Compilation & Distribution System Powered by DOOM
 
-A high-performance, cross-platform DOOM source port engineered for **HRGZDevEngine**, based on the canonical id Software 1993/1997 source code ([id-software/DOOM](https://github.com/id-software/DOOM)).
-
-Designed from the ground up for **Modern Windows** (Win32 / Win64 with **zero external dependencies**), **macOS** (Apple Metal hardware acceleration & Cocoa), **Linux** (SDL2), and **Sony PSP** (PSPDEV homebrew).
-
-### 🚀 All-in-One Game Creation & Distribution Studio
-HRGZDevEngine now includes **HRGZDevEngine Studio** — a visual desktop studio and compilation hub that lets creators design, compile, and distribute standalone retro games powered by the DOOM engine in one tool:
-- **Visual Desktop Studio GUI**: Run `./hrgz-studio` or `npm run studio` to launch the interactive dark-mode dashboard.
-- **Universal CLI (`bin/hrgz`)**: Command-line interface for terminal users, scripting, and CI/CD pipelines (`hrgz init`, `hrgz build`, `hrgz dist`, `hrgz run`).
-- **Bundled Game Packs**: Package custom WADs, DeHackEd patches, and metadata into standalone games that boot directly with isolated saves, custom window titles, and branding.
-- **Multi-Platform Publishing**: Export ready-to-publish release archives for **macOS (.app)**, **Windows (.exe)**, and **Linux** with `itch.toml` action files and Steam configs in one click.
+**HRGZDevEngine Studio** is a visual desktop application and distribution suite that empowers developers, level designers, and modders to package custom DOOM-engine projects, WAD archives, DeHackEd patches, and audio assets into **standalone, commercially distributable retro games** with isolated saves, custom branding, and zero external dependencies.
 
 ---
 
-## Highlights & Engineering Overview
+### 📦 Official Studio Downloads (Latest Release)
 
-### 1. Modern 64-Bit & Cross-Platform Engine Core (`src/doom/`)
-The original 1997 Linux release was riddled with 32-bit pointer assumptions, unaligned memory accesses, compiler-specific behaviors, and deprecated Unix headers. All have been systematically rectified:
-- **Zero Pointer Truncation**: Standardized on `<stdint.h>` (`intptr_t`, `uintptr_t`, `int32_t`, `int16_t`, `uint8_t`). Pointers are never cast to 32-bit integers.
-- **Fixed 64-Bit Pointer Array Allocations**: Fixed legacy bugs in `r_data.c` and `p_setup.c` where pointer tables (`textures`, `texturecolumnlump`, `texturecolumnofs`, `texturecomposite`, `linebuffer`) were allocated assuming 4-byte pointers (`* 4`), which caused memory corruption on 64-bit architectures.
-- **Binary Struct Packing**: Explicit `#pragma pack(push, 1)` and `pop` applied across all binary WAD structures (`doomdata.h`, `w_wad.h`, `r_data.c`), guaranteeing byte-for-byte binary compatibility with vanilla WAD lumps regardless of compiler struct alignment defaults.
-- **Win32 Enum Conflict Safeguards**: Resolved conflicts between DOOM's boolean type (`boolean`) and Windows SDK `rpcndr.h`.
-- **Clean Configuration Subsystem**: Overhauled `m_misc.c` with explicit typed entries (`isstring`), eliminating unsafe pointer-to-integer casts when parsing `default.cfg`.
-- **Accurate Fixed-Point Math**: 64-bit integer accelerated `FixedDiv` and safely parenthesized endian-swapping macros in `m_swap.h`.
-- **16:9 Widescreen Renderer**: 426x200 true widescreen software rendering with sub-pixel accurate horizontal FOV expansion and double-buffered frame refreshing.
-- **Multi-Resolution Display Output**: Dynamic scaling for **720p HD**, **1080p FHD**, **1440p QHD**, **4K UHD**, and **480p SD** with in-game DOOM Options Menu selection, CLI parameters, and `Alt+Enter`/`F11` fullscreen toggling while preserving crisp retro pixel art.
+Pre-built packages for **HRGZDevEngine Studio** are available for all major desktop operating systems:
 
-### 2. Native macOS Driver (`src/hal/mac/`)
-- **Apple Metal Hardware Acceleration**: Zero-latency streaming texture presentation with triple-buffering via Metal and QuartzCore.
-- **Native Dual Audio**: 16-bit 11025 Hz software multichannel sound mixer and General MIDI playback streamed via macOS `AudioToolbox`.
-- **Packaged App Bundle**: Self-contained `DOOM.app` application bundle with embedded IWAD and high-resolution Retina display scaling.
+| Platform | Download Package | Format | Details |
+| :--- | :--- | :--- | :--- |
+| 🍏 **macOS** | [`HRGZDevEngine-Studio-macOS.dmg`](https://github.com/theretrogeekyt-dev/HRGZDevEngine/releases/latest/download/HRGZDevEngine-Studio-macOS.dmg) | Apple Disk Image (`.dmg`) | Standalone native Cocoa/WebKit desktop application (Apple Silicon & Intel) |
+| 🪟 **Windows** | [`HRGZDevEngine-Studio-Windows.zip`](https://github.com/theretrogeekyt-dev/HRGZDevEngine/releases/latest/download/HRGZDevEngine-Studio-Windows.zip) | Executable Bundle (`.exe`) | Dedicated Win32 standalone launcher (`HRGZDevEngine-Studio.exe`) without command prompt windows |
+| 🐧 **Linux** | [`hrgzdevengine-studio_1.0.0_all.deb`](https://github.com/theretrogeekyt-dev/HRGZDevEngine/releases/latest/download/hrgzdevengine-studio_1.0.0_all.deb) | Debian Package (`.deb`) | Native package with `/usr/bin/hrgz-studio` launcher and desktop menu entry |
 
-### 3. Native Modern Windows Driver (`src/hal/win32/`)
-- **Zero External DLL Dependencies**: Runs out-of-the-box on Windows 95 through Windows 11 without requiring SDL, DirectX, OpenAL, or any runtime redistributable.
-- **OpenGL Hardware Acceleration**: High-performance WGL streaming texture upload with V-Sync and graceful GDI `StretchDIBits` fallback.
-- **Smooth Mouse Capture**: Windowed and fullscreen cursor confinement with relative motion turning.
-- **Native Dual Audio Subsystem**:
-  - **Digital Sound Effects**: 16-bit 11025 Hz software multichannel mixer streamed via WinMM `waveOut`.
-  - **General MIDI Music**: Real-time DOOM MUS-to-MIDI parser and sequencer driving the built-in Microsoft GS Wavetable Synth (`midiOut`).
+---
 
-### 4. PlayStation Portable (PSP) Driver (`src/hal/psp/`)
-- **Official PSPDEV SDK**: Built using the modern community-maintained toolchain ([pspdev.github.io](https://pspdev.github.io)).
-- **Native 480x272 Widescreen**: High-speed double-buffered blitting to uncached eDRAM VRAM with 16:9 full screen and 426x200 pixel-perfect aspect options.
-- **Hardware Overclocking**: Automatically unlocks the Allegrex CPU to its maximum 333 MHz performance mode for locked 60 FPS gameplay.
-- **Multichannel Audio Thread**: Dedicated asynchronous kernel audio thread streaming 16-bit 44.1 kHz stereo sound effects and MUS2MIDI music via `libpspaudio`.
-- **Integrated PSP Controls**: Full analog nub movement, directional controls, and face/shoulder button mapping integrated with the playsim.
-- **Authentic EBOOT.PBP**: Packaged with high-resolution 144x80 XMB icon (`ICON0.PNG`) for 1-click execution on PSP hardware, PS Vita (Adrenaline), and PPSSPP.
+## 🚀 Key Studio Features
 
-### 5. Automated Headless Test Harness (`src/hal/test/`)
-- Deterministic headless playsim runner for automated CI/CD and regression testing.
-- Renders genuine DOOM BSP scenes into uncompressed RGB PPM frames (`test_frame35.ppm`, `test_frame100.ppm`).
+- **Visual Desktop Studio GUI**: Run `./hrgz-studio` or open the installed app to launch the interactive dark-mode dashboard.
+- **Universal CLI (`bin/hrgz`)**: Command-line interface for terminal users, scripting, and CI/CD pipelines (`hrgz init`, `hrgz build`, `hrgz dist`, `hrgz run`).
+- **1-Click Native Game Distribution**:
+  - **macOS**: Standalone `.app` bundles packed inside an Apple Disk Image (`.dmg`) with `/Applications` drag-and-drop link.
+  - **Windows**: Dedicated `.exe` packages with embedded assets and launcher batch scripts for Steam and itch.io.
+  - **Linux**: Dedicated Debian packages (`.deb`) installing into `/usr/games/` with `.desktop` menu integration.
+- **Integrated WAD Asset Pipeline**: Fast lump inspector validating palettes (`PLAYPAL`), textures, sprites, maps, and music.
+- **Embedded Engine Runtime**: Powered by the modern 64-bit HRGZDevEngine core with Apple Metal hardware acceleration, OpenGL streaming, true 16:9 widescreen, and multi-resolution display scaling.
+
 
 ---
 
