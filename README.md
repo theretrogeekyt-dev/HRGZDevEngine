@@ -282,7 +282,14 @@ The studio dashboard will open automatically in your browser at `http://127.0.0.
 - **Interactive Project Dashboard**: Overview of metadata, game slug, version, and quick publishing links.
 - **Visual Asset Pipeline**: Automatic WAD lump parser, verifying palette, textures, sound effects, and level lists.
 - **Real-Time Compiler Hub**: Live compiler logs streaming directly to the in-browser terminal console.
-- **One-Click Distribution**: Builds `.zip` releases with `itch.toml` action files and Steam configs.
+- **One-Click Distribution**: Builds `.zip`, `.dmg`, `.deb`, and `.exe` releases with `itch.toml` action files and Steam configs.
+
+### Official Pre-Built Studio Downloads (GitHub Releases)
+Pre-built packages for **HRGZDevEngine Studio** are published with every GitHub Release:
+- 🍏 **macOS**: [`HRGZDevEngine-Studio-macOS.dmg`](https://github.com/theretrogeekyt-dev/HRGZDevEngine/releases/latest/download/HRGZDevEngine-Studio-macOS.dmg) (Apple Disk Image)
+- 🪟 **Windows**: [`HRGZDevEngine-Studio-Windows.zip`](https://github.com/theretrogeekyt-dev/HRGZDevEngine/releases/latest/download/HRGZDevEngine-Studio-Windows.zip) (Standalone `HRGZDevEngine-Studio.exe` bundle)
+- 🐧 **Linux**: [`hrgzdevengine-studio_1.0.0_all.deb`](https://github.com/theretrogeekyt-dev/HRGZDevEngine/releases/latest/download/hrgzdevengine-studio_1.0.0_all.deb) (Debian Package)
+
 
 ### 2. Dedicated Native Packaging (.dmg, .deb, .exe)
 You can package the **Studio App** or your **Custom Games** into dedicated platform packages:

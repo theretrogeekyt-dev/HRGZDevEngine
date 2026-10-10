@@ -220,19 +220,28 @@ function packageWinExe() {
     fs.cpSync(path.join(REPO_ROOT, 'bin'), path.join(winDir, 'bin'), { recursive: true });
     fs.copyFileSync(path.join(REPO_ROOT, 'hrgz-studio.bat'), path.join(winDir, 'HRGZDevEngine-Studio.bat'));
 
-    // Check if MinGW cross-compiler is available to compile native studio_win.c
-    let mingw = false;
-    try {
-        execSync('which x86_64-w64-mingw32-gcc 2>/dev/null', { stdio: 'ignore' });
-        mingw = true;
-    } catch {}
+    // Check if MinGW cross-compiler or native Windows GCC is available to compile native studio_win.c
+    let mingwCompiler = null;
+    for (const cmd of ['x86_64-w64-mingw32-gcc', 'i686-w64-mingw32-gcc']) {
+        try {
+            execSync(`which ${cmd} 2>/dev/null`, { stdio: 'ignore' });
+            mingwCompiler = cmd;
+            break;
+        } catch {}
+    }
+    if (!mingwCompiler && (process.platform === 'win32' || process.env.MSYSTEM)) {
+        try {
+            execSync('where gcc 2>nul || which gcc 2>/dev/null', { stdio: 'ignore' });
+            mingwCompiler = 'gcc';
+        } catch {}
+    }
 
     const srcFile = path.join(REPO_ROOT, 'studio', 'native', 'win', 'studio_win.c');
     const exeOut = path.join(winDir, 'HRGZDevEngine-Studio.exe');
 
-    if (mingw) {
-        console.log('[WIN] Compiling native Win32 GUI executable (HRGZDevEngine-Studio.exe)...');
-        run(`x86_64-w64-mingw32-gcc -O3 -mwindows "${srcFile}" -o "${exeOut}" -lkernel32 -luser32 -lshell32`);
+    if (mingwCompiler) {
+        console.log(`[WIN] Compiling native Win32 GUI executable (HRGZDevEngine-Studio.exe) using ${mingwCompiler}...`);
+        run(`${mingwCompiler} -O3 -mwindows "${srcFile}" -o "${exeOut}" -lkernel32 -luser32 -lshell32`);
     } else {
         console.log('[WIN] MinGW cross-compiler not on host; compiling native C stub or copying Windows launcher.');
         // Provide dedicated VBS/PowerShell launcher that runs without console window
@@ -245,7 +254,13 @@ WshShell.Run "cmd /c ""%~dp0HRGZDevEngine-Studio.bat""", 0, False
     // Zip Windows release
     const zipOutput = path.join(DIST_DIR, 'HRGZDevEngine-Studio-Windows.zip');
     if (fs.existsSync(zipOutput)) fs.unlinkSync(zipOutput);
-    run(`zip -r -y "${zipOutput}" HRGZDevEngine-Studio-Windows`, DIST_DIR);
+    try {
+        run(`zip -r -y "${zipOutput}" HRGZDevEngine-Studio-Windows`, DIST_DIR);
+    } catch {
+        if (process.platform === 'win32') {
+            run(`powershell -Command "Compress-Archive -Path '${winDir}' -DestinationPath '${zipOutput}' -Force"`);
+        }
+    }
 
     console.log(`[SUCCESS] Windows distribution created: ${winDir}\n`);
     return zipOutput;

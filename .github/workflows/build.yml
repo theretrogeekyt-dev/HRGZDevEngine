@@ -80,11 +80,22 @@ jobs:
           cd build/mac
           zip -r -y -X ../../HRGZDevEngine-DOOM-macOS.zip DOOM.app doom_mac
 
+      - name: Package HRGZDevEngine Studio (.dmg)
+        run: |
+          node studio/package_studio.js mac
+          cp dist/HRGZDevEngine-Studio-macOS.dmg .
+
       - name: Upload macOS Artifact
         uses: actions/upload-artifact@v4
         with:
           name: HRGZDevEngine-DOOM-macOS
           path: HRGZDevEngine-DOOM-macOS.zip
+
+      - name: Upload macOS Studio Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: HRGZDevEngine-Studio-macOS
+          path: HRGZDevEngine-Studio-macOS.dmg
 
   #--------------------------------------------------------------------------
   # 2. Modern Windows Native Build (Win32 + OpenGL + WinMM)
@@ -124,11 +135,23 @@ jobs:
           cd build/win
           zip -r ../../HRGZDevEngine-DOOM-Windows.zip doom.exe doom1.wad
 
+      - name: Package HRGZDevEngine Studio (.exe)
+        shell: msys2 {0}
+        run: |
+          node studio/package_studio.js win
+          cp dist/HRGZDevEngine-Studio-Windows.zip .
+
       - name: Upload Windows Artifact
         uses: actions/upload-artifact@v4
         with:
           name: HRGZDevEngine-DOOM-Windows
           path: HRGZDevEngine-DOOM-Windows.zip
+
+      - name: Upload Windows Studio Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: HRGZDevEngine-Studio-Windows
+          path: HRGZDevEngine-Studio-Windows.zip
 
   #--------------------------------------------------------------------------
   # 3. Linux Build & Automated Headless Playsim Test Suite
@@ -205,6 +228,17 @@ jobs:
           name: HRGZDevEngine-DOOM-Linux-SDL2
           path: HRGZDevEngine-DOOM-Linux-SDL2.zip
 
+      - name: Package HRGZDevEngine Studio (.deb)
+        run: |
+          node studio/package_studio.js linux
+          cp dist/hrgzdevengine-studio_1.0.0_all.deb .
+
+      - name: Upload Linux Studio (.deb) Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hrgzdevengine-studio-deb
+          path: hrgzdevengine-studio_1.0.0_all.deb
+
       - name: Upload Verification Screenshots Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -272,15 +306,30 @@ jobs:
         with:
           name: HRGZDevEngine-DOOM-macOS
 
+      - name: Download macOS Studio Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: HRGZDevEngine-Studio-macOS
+
       - name: Download Windows Artifact
         uses: actions/download-artifact@v4
         with:
           name: HRGZDevEngine-DOOM-Windows
 
+      - name: Download Windows Studio Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: HRGZDevEngine-Studio-Windows
+
       - name: Download Linux Artifact
         uses: actions/download-artifact@v4
         with:
           name: HRGZDevEngine-DOOM-Linux-SDL2
+
+      - name: Download Linux Studio Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: hrgzdevengine-studio-deb
 
       - name: Download PSP Artifact
         uses: actions/download-artifact@v4
@@ -303,9 +352,18 @@ jobs:
           echo "RELEASE_TITLE=$TITLE" >> $GITHUB_ENV
 
           cat << 'EOF' > release_notes.md
-          # HRGZDevEngine DOOM — Release
+          # HRGZDevEngine DOOM & Studio — Release
 
-          ### 📦 Platform Downloads
+          ### 🛠️ HRGZDevEngine Studio Downloads (Game Creation & Distribution System)
+          | Platform | Package | Format | Description |
+          |---|---|---|---|
+          | 🍏 **macOS** | [`HRGZDevEngine-Studio-macOS.dmg`](https://github.com/${{ github.repository }}/releases/download/latest/HRGZDevEngine-Studio-macOS.dmg) | Apple Disk Image (`.dmg`) | Native Cocoa/WebKit Desktop App |
+          | 🪟 **Windows** | [`HRGZDevEngine-Studio-Windows.zip`](https://github.com/${{ github.repository }}/releases/download/latest/HRGZDevEngine-Studio-Windows.zip) | Executable Bundle (`.exe`) | Native Win32 GUI (`HRGZDevEngine-Studio.exe`) |
+          | 🐧 **Linux** | [`hrgzdevengine-studio_1.0.0_all.deb`](https://github.com/${{ github.repository }}/releases/download/latest/hrgzdevengine-studio_1.0.0_all.deb) | Debian Package (`.deb`) | Native `.desktop` entry & system CLI |
+
+          ---
+
+          ### 📦 Built-In Engine Downloads (DOOM Ports)
           | Platform | Package | Driver Stack |
           |---|---|---|
           | 🍏 **macOS** | [`HRGZDevEngine-DOOM-macOS.zip`](https://github.com/${{ github.repository }}/releases/download/latest/HRGZDevEngine-DOOM-macOS.zip) | Metal HW Accel + Cocoa + AudioToolbox |
@@ -328,6 +386,7 @@ jobs:
           ---
 
           ### ✨ Key Features
+          - **All-in-One Studio Distribution System**: Dedicated visual app (.dmg for macOS, .exe for Windows, .deb for Linux) to create, compile, and distribute custom DOOM-engine games
           - **Multi-Resolution Display Output**: Dynamic scaling for 720p HD, 1080p FHD, 1440p QHD, 4K UHD, and 480p with live in-game Options Menu, CLI flags (-res/-1080p/-4k/-scale), and Alt+Enter/F11 fullscreen hotkeys
           - **Hardware-Accelerated Rendering**: Native Apple Metal (macOS) and OpenGL (Windows) streaming presentation
           - **16:9 True Widescreen**: 426x200 sub-pixel resolution scaled to modern displays with extended horizontal field of view
@@ -345,6 +404,9 @@ jobs:
           name: ${{ env.RELEASE_TITLE }}
           body_path: release_notes.md
           files: |
+            HRGZDevEngine-Studio-macOS.dmg
+            HRGZDevEngine-Studio-Windows.zip
+            hrgzdevengine-studio_1.0.0_all.deb
             HRGZDevEngine-DOOM-macOS.zip
             HRGZDevEngine-DOOM-Windows.zip
             HRGZDevEngine-DOOM-Linux-SDL2.zip
@@ -352,7 +414,3 @@ jobs:
           draft: false
           prerelease: false
           make_latest: true
-
-
-
-
