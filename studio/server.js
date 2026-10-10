@@ -254,6 +254,14 @@ const server = http.createServer(async (req, res) => {
     });
 });
 
+server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+        console.log(`[HRGZDevEngine Studio] Port ${PORT} already active, reusing existing instance.`);
+    } else {
+        console.error(`[HRGZDevEngine Studio] Server error:`, err);
+    }
+});
+
 server.listen(PORT, '127.0.0.1', () => {
     const url = `http://127.0.0.1:${PORT}`;
     console.log(`=======================================================`);
@@ -261,10 +269,12 @@ server.listen(PORT, '127.0.0.1', () => {
     console.log(`  Dashboard running at: ${url}`);
     console.log(`=======================================================`);
 
-    // Auto-open desktop browser window
-    const openCommand = process.platform === 'darwin' ? `open "${url}"` :
-                        process.platform === 'win32' ? `start "${url}"` :
-                        `xdg-open "${url}"`;
-    exec(openCommand, () => {});
+    // Only auto-open external browser when NOT running inside embedded desktop native wrapper
+    if (process.env.HRGZ_EMBEDDED !== '1') {
+        const openCommand = process.platform === 'darwin' ? `open "${url}"` :
+                            process.platform === 'win32' ? `start "${url}"` :
+                            `xdg-open "${url}"`;
+        exec(openCommand, () => {});
+    }
 });
 

@@ -80,6 +80,13 @@ function packageMacDMG() {
     <string>1</string>
     <key>NSHighResolutionCapable</key>
     <true/>
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <key>NSAllowsArbitraryLoads</key>
+        <true/>
+        <key>NSAllowsLocalNetworking</key>
+        <true/>
+    </dict>
 </dict>
 </plist>`;
     fs.writeFileSync(path.join(appDir, 'Contents', 'Info.plist'), plist);
