@@ -8,17 +8,16 @@ const fs = require('fs');
 const path = require('path');
 const { spawn, execSync } = require('child_process');
 const { parseWad } = require('../studio/wad_parser');
-const { buildMac, buildWin, buildLinux, packageRelease, detectSystem } = require('../studio/builder');
-
-const REPO_ROOT = path.resolve(__dirname, '..');
-const PROJECT_FILE = path.join(REPO_ROOT, 'game.json');
+const { buildMac, buildWin, buildLinux, packageRelease, detectSystem, getWorkspaceRoot } = require('../studio/builder');
 
 const args = process.argv.slice(2);
 const command = args[0] || 'help';
 
 function loadProject() {
-    if (fs.existsSync(PROJECT_FILE)) {
-        return JSON.parse(fs.readFileSync(PROJECT_FILE, 'utf8'));
+    const ws = getWorkspaceRoot();
+    const projFile = path.join(ws, 'game.json');
+    if (fs.existsSync(projFile)) {
+        return JSON.parse(fs.readFileSync(projFile, 'utf8'));
     }
     return {
         title: 'Cyber Assault',
@@ -56,8 +55,9 @@ async function main() {
                 defaultResolution: '426x200',
                 scalingMode: 'widescreen_16_9'
             };
-            fs.writeFileSync(PROJECT_FILE, JSON.stringify(proj, null, 2));
-            console.log(`Initialized new game project '${name}' in game.json`);
+            const ws = getWorkspaceRoot();
+            fs.writeFileSync(path.join(ws, 'game.json'), JSON.stringify(proj, null, 2));
+            console.log(`Initialized new game project '${name}' in ${path.join(ws, 'game.json')}`);
             break;
         }
 
@@ -113,7 +113,8 @@ async function main() {
         case 'run':
         case 'play': {
             const project = loadProject();
-            const binary = path.join(REPO_ROOT, 'build', 'projects', project.id, 'mac', `${project.title}.app`, 'Contents', 'MacOS', project.id);
+            const ws = getWorkspaceRoot();
+            const binary = path.join(ws, 'build', 'projects', project.id, 'mac', `${project.title}.app`, 'Contents', 'MacOS', project.id);
             if (!fs.existsSync(binary)) {
                 console.log(`Game binary not found. Building '${project.title}' first...`);
                 await buildMac(project, log);

@@ -23,6 +23,67 @@ function run(cmd, cwd = REPO_ROOT) {
     execSync(cmd, { cwd, stdio: 'inherit' });
 }
 
+/**
+ * Bundles all studio assets, engine sources, default WADs, and runtime templates
+ * into the target distribution directory.
+ */
+function bundleEnginePayload(targetDir) {
+    // 1. Studio files (server, builder, UI)
+    const destStudio = path.join(targetDir, 'studio');
+    ensureDir(destStudio);
+    fs.cpSync(path.join(REPO_ROOT, 'studio'), destStudio, { recursive: true });
+
+    // 2. CLI executable
+    const destBin = path.join(targetDir, 'bin');
+    ensureDir(destBin);
+    fs.cpSync(path.join(REPO_ROOT, 'bin'), destBin, { recursive: true });
+
+    // 3. Complete DOOM Engine source tree (src/doom, src/hal/...)
+    const destSrc = path.join(targetDir, 'src');
+    ensureDir(destSrc);
+    fs.cpSync(path.join(REPO_ROOT, 'src'), destSrc, { recursive: true });
+
+    // 4. Default game assets (doom1.wad)
+    const wadFile = path.join(REPO_ROOT, 'doom1.wad');
+    if (fs.existsSync(wadFile)) {
+        fs.copyFileSync(wadFile, path.join(targetDir, 'doom1.wad'));
+    }
+
+    // 5. Package manifest
+    const pkgFile = path.join(REPO_ROOT, 'package.json');
+    if (fs.existsSync(pkgFile)) {
+        fs.copyFileSync(pkgFile, path.join(targetDir, 'package.json'));
+    }
+
+    // 6. Pre-compiled engine runtime templates (if available)
+    const destTemplates = path.join(targetDir, 'templates');
+    ensureDir(destTemplates);
+
+    // macOS templates
+    const destTemplatesMac = path.join(destTemplates, 'mac');
+    ensureDir(destTemplatesMac);
+    if (fs.existsSync(path.join(REPO_ROOT, 'build', 'mac', 'doom_mac'))) {
+        fs.copyFileSync(path.join(REPO_ROOT, 'build', 'mac', 'doom_mac'), path.join(destTemplatesMac, 'doom_mac'));
+    }
+    if (fs.existsSync(path.join(REPO_ROOT, 'build', 'mac', 'DOOM.app'))) {
+        fs.cpSync(path.join(REPO_ROOT, 'build', 'mac', 'DOOM.app'), path.join(destTemplatesMac, 'DOOM.app'), { recursive: true });
+    }
+
+    // Windows templates
+    const destTemplatesWin = path.join(destTemplates, 'win');
+    ensureDir(destTemplatesWin);
+    if (fs.existsSync(path.join(REPO_ROOT, 'build', 'win', 'doom.exe'))) {
+        fs.copyFileSync(path.join(REPO_ROOT, 'build', 'win', 'doom.exe'), path.join(destTemplatesWin, 'doom.exe'));
+    }
+
+    // Linux templates
+    const destTemplatesLinux = path.join(destTemplates, 'linux');
+    ensureDir(destTemplatesLinux);
+    if (fs.existsSync(path.join(REPO_ROOT, 'build', 'linux', 'doom_sdl'))) {
+        fs.copyFileSync(path.join(REPO_ROOT, 'build', 'linux', 'doom_sdl'), path.join(destTemplatesLinux, 'doom_sdl'));
+    }
+}
+
 function packageMacDMG() {
     console.log('\n=======================================================');
     console.log(' [macOS] Building HRGZDevEngine Studio Native .dmg');
@@ -47,15 +108,8 @@ function packageMacDMG() {
 
     run(`clang -O3 -fobjc-arc -framework Cocoa -framework WebKit "${srcFile}" -o "${binaryPath}"`);
 
-    // 2. Bundle studio files into Contents/Resources/studio
-    const destStudio = path.join(resDir, 'studio');
-    ensureDir(destStudio);
-    fs.cpSync(path.join(REPO_ROOT, 'studio'), destStudio, { recursive: true });
-
-    // Also copy bin/hrgz into Resources
-    const destBin = path.join(resDir, 'bin');
-    ensureDir(destBin);
-    fs.cpSync(path.join(REPO_ROOT, 'bin'), destBin, { recursive: true });
+    // 2. Bundle all studio and engine assets into Contents/Resources
+    bundleEnginePayload(resDir);
 
     // 3. Generate Info.plist
     const plist = `<?xml version="1.0" encoding="UTF-8"?>
@@ -92,6 +146,7 @@ function packageMacDMG() {
     fs.writeFileSync(path.join(appDir, 'Contents', 'Info.plist'), plist);
 
     // 4. Code sign bundle
+    run(`dot_clean -m "${appDir}" 2>/dev/null || true`);
     run(`find "${appDir}" -name ".DS_Store" -delete 2>/dev/null || true`);
     run(`xattr -cr "${appDir}" 2>/dev/null || true`);
     try {
@@ -162,9 +217,8 @@ Description: All-in-One Game Creation, Compilation & Distribution System based o
     ensureDir(usrShare);
     ensureDir(usrApps);
 
-    // Copy studio files to /usr/share/hrgzdevengine-studio/
-    fs.cpSync(path.join(REPO_ROOT, 'studio'), path.join(usrShare, 'studio'), { recursive: true });
-    fs.cpSync(path.join(REPO_ROOT, 'bin'), path.join(usrShare, 'bin'), { recursive: true });
+    // Bundle studio files, engine sources, and default assets
+    bundleEnginePayload(usrShare);
 
     // Launcher scripts
     const launcherSh = `#!/bin/sh
@@ -206,7 +260,7 @@ Categories=Development;Game;
 
     run(`ar -q -S "${debOutput}" debian-binary control.tar.gz data.tar.gz`, debStaging);
 
-    console.log(`[SUCCESS] Linux Debian package (.deb) created: ${debOutput} (${(fs.statSync(debOutput).size / 1024).toFixed(1)} KB)\n`);
+    console.log(`[SUCCESS] Linux Debian package (.deb) created: ${debOutput} (${(fs.statSync(debOutput).size / (1024*1024)).toFixed(2)} MB)\n`);
     return debOutput;
 }
 
@@ -222,9 +276,8 @@ function packageWinExe() {
     if (fs.existsSync(winDir)) fs.rmSync(winDir, { recursive: true, force: true });
     ensureDir(winDir);
 
-    // Copy studio files & root launchers
-    fs.cpSync(path.join(REPO_ROOT, 'studio'), path.join(winDir, 'studio'), { recursive: true });
-    fs.cpSync(path.join(REPO_ROOT, 'bin'), path.join(winDir, 'bin'), { recursive: true });
+    // Bundle studio files, engine sources, and default assets
+    bundleEnginePayload(winDir);
     fs.copyFileSync(path.join(REPO_ROOT, 'hrgz-studio.bat'), path.join(winDir, 'HRGZDevEngine-Studio.bat'));
 
     // Check if MinGW cross-compiler or native Windows GCC is available to compile native studio_win.c
@@ -250,11 +303,8 @@ function packageWinExe() {
         console.log(`[WIN] Compiling native Win32 GUI executable (HRGZDevEngine-Studio.exe) using ${mingwCompiler}...`);
         run(`${mingwCompiler} -O3 -mwindows "${srcFile}" -o "${exeOut}" -lkernel32 -luser32 -lshell32`);
     } else {
-        console.log('[WIN] MinGW cross-compiler not on host; compiling native C stub or copying Windows launcher.');
-        // Provide dedicated VBS/PowerShell launcher that runs without console window
-        const vbs = `Set WshShell = CreateObject("WScript.Shell")
-WshShell.Run "cmd /c ""%~dp0HRGZDevEngine-Studio.bat""", 0, False
-`;
+        console.log('[WIN] MinGW cross-compiler not on host; copying Windows launcher.');
+        const vbs = `Set WshShell = CreateObject("WScript.Shell")\r\nWshShell.Run "cmd /c ""%~dp0HRGZDevEngine-Studio.bat""", 0, False\r\n`;
         fs.writeFileSync(path.join(winDir, 'HRGZDevEngine-Studio.vbs'), vbs);
     }
 
@@ -269,7 +319,7 @@ WshShell.Run "cmd /c ""%~dp0HRGZDevEngine-Studio.bat""", 0, False
         }
     }
 
-    console.log(`[SUCCESS] Windows distribution created: ${winDir}\n`);
+    console.log(`[SUCCESS] Windows distribution created: ${zipOutput} (${(fs.statSync(zipOutput).size / (1024*1024)).toFixed(2)} MB)\n`);
     return zipOutput;
 }
 

@@ -149,16 +149,8 @@ jobs:
       - name: Package HRGZDevEngine Studio (.exe)
         shell: msys2 {0}
         run: |
-          mkdir -p dist/HRGZDevEngine-Studio-Windows
-          gcc -O3 -mwindows studio/native/win/studio_win.c \
-            -o dist/HRGZDevEngine-Studio-Windows/HRGZDevEngine-Studio.exe \
-            -lkernel32 -luser32 -lshell32
-          cp -r studio dist/HRGZDevEngine-Studio-Windows/
-          cp -r bin dist/HRGZDevEngine-Studio-Windows/
-          cp hrgz-studio.bat dist/HRGZDevEngine-Studio-Windows/HRGZDevEngine-Studio.bat
-          cd dist
-          zip -r -y ../HRGZDevEngine-Studio-Windows.zip HRGZDevEngine-Studio-Windows
-          cd ..
+          node studio/package_studio.js win
+          cp dist/HRGZDevEngine-Studio-Windows.zip .
 
       - name: Upload Windows Artifact
         uses: actions/upload-artifact@v4

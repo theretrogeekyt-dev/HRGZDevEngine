@@ -175,6 +175,7 @@ static NSString *FindNodeExecutable(void) {
     env[@"PATH"] = [NSString stringWithFormat:@"%@:/opt/homebrew/bin:/usr/local/bin:/opt/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:%@", nodeDir, currentPath];
     env[@"PORT"] = @"4820";
     env[@"HRGZ_EMBEDDED"] = @"1";
+    env[@"HRGZ_ENGINE_ROOT"] = repoRoot;
     [self.serverTask setEnvironment:env];
 
     @try {

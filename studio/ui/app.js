@@ -53,6 +53,9 @@ async function init() {
         if (sys.tools.gcc) compilers.push('GCC');
         if (sys.tools.mingw) compilers.push('MinGW');
         systemText.textContent = `${sys.platform.toUpperCase()} (${compilers.join(', ') || 'Native'})`;
+        if (sys.workspaceRoot) {
+            systemText.title = `Workspace: ${sys.workspaceRoot}\nEngine: ${sys.engineRoot}`;
+        }
 
         const projRes = await fetch('/api/project');
         currentProject = await projRes.json();
@@ -280,6 +283,19 @@ async function checkGameStatus() {
     } catch {}
     setTimeout(checkGameStatus, 2000);
 }
+
+async function openFolder(folder) {
+    try {
+        await fetch('/api/open-folder', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ folder })
+        });
+    } catch (err) {
+        alert('Could not open folder: ' + err.message);
+    }
+}
+window.openFolder = openFolder;
 
 // Start
 init();

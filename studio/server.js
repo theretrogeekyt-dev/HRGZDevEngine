@@ -9,12 +9,22 @@ const fs = require('fs');
 const path = require('path');
 const { spawn, exec } = require('child_process');
 const { parseWad } = require('./wad_parser');
-const { detectSystem, buildMac, buildWin, buildLinux, packageRelease } = require('./builder');
+const { 
+    getEngineRoot, 
+    getWorkspaceRoot, 
+    resolveWadPath, 
+    detectSystem, 
+    buildMac, 
+    buildWin, 
+    buildLinux, 
+    packageRelease 
+} = require('./builder');
 
 const PORT = process.env.PORT || 4820;
-const REPO_ROOT = path.resolve(__dirname, '..');
+const ENGINE_ROOT = getEngineRoot();
+const WORKSPACE_ROOT = getWorkspaceRoot();
 const UI_DIR = path.join(__dirname, 'ui');
-const DEFAULT_PROJECT_FILE = path.join(REPO_ROOT, 'game.json');
+const DEFAULT_PROJECT_FILE = path.join(WORKSPACE_ROOT, 'game.json');
 
 let activeGameProcess = null;
 
@@ -76,7 +86,16 @@ function loadProject() {
             return getDefaultProject();
         }
     }
-    return getDefaultProject();
+    const def = getDefaultProject();
+    saveProject(def);
+
+    // Seed default doom1.wad into workspace if missing
+    const wsWad = path.join(WORKSPACE_ROOT, 'doom1.wad');
+    const engWad = path.join(ENGINE_ROOT, 'doom1.wad');
+    if (!fs.existsSync(wsWad) && fs.existsSync(engWad)) {
+        try { fs.copyFileSync(engWad, wsWad); } catch {}
+    }
+    return def;
 }
 
 function saveProject(data) {
@@ -119,11 +138,38 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/api/wad/inspect' && req.method === 'POST') {
         try {
             const body = await readBody(req);
-            const wadPath = body.wadPath ? path.resolve(REPO_ROOT, body.wadPath) : path.join(REPO_ROOT, 'doom1.wad');
+            const wadPath = resolveWadPath(body.wadPath);
+            if (!wadPath || !fs.existsSync(wadPath)) {
+                return sendJson(res, 404, { ok: false, error: 'WAD archive not found' });
+            }
             const data = parseWad(wadPath);
-            return sendJson(res, 200, { ok: true, wad: data });
+            return sendJson(res, 200, { ok: true, wad: data, path: wadPath });
         } catch (err) {
             return sendJson(res, 400, { ok: false, error: err.message });
+        }
+    }
+
+    if (url.pathname === '/api/open-folder' && req.method === 'POST') {
+        try {
+            const body = await readBody(req);
+            const folder = body.folder || 'dist';
+            let targetDir = WORKSPACE_ROOT;
+            if (folder === 'dist') targetDir = path.join(WORKSPACE_ROOT, 'dist');
+            else if (folder === 'build') targetDir = path.join(WORKSPACE_ROOT, 'build');
+            else if (folder === 'workspace') targetDir = WORKSPACE_ROOT;
+            else if (body.path && fs.existsSync(body.path)) {
+                targetDir = fs.statSync(body.path).isDirectory() ? body.path : path.dirname(body.path);
+            }
+
+            if (!fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true });
+
+            const cmd = process.platform === 'darwin' ? `open "${targetDir}"` :
+                        process.platform === 'win32' ? `explorer "${targetDir}"` :
+                        `xdg-open "${targetDir}"`;
+            exec(cmd, () => {});
+            return sendJson(res, 200, { ok: true, path: targetDir });
+        } catch (err) {
+            return sendJson(res, 500, { ok: false, error: err.message });
         }
     }
 
@@ -204,10 +250,10 @@ const server = http.createServer(async (req, res) => {
 
             let execCmd = null;
             let execArgs = [];
-            let execCwd = REPO_ROOT;
+            let execCwd = WORKSPACE_ROOT;
 
             if (process.platform === 'darwin') {
-                const appPath = path.join(REPO_ROOT, 'build', 'projects', project.id, 'mac', `${project.title}.app`);
+                const appPath = path.join(WORKSPACE_ROOT, 'build', 'projects', project.id, 'mac', `${project.title}.app`);
                 const macBinary = path.join(appPath, 'Contents', 'MacOS', project.id);
                 if (!fs.existsSync(macBinary)) {
                     await buildMac(project, (msg) => console.log(msg));
@@ -215,13 +261,16 @@ const server = http.createServer(async (req, res) => {
                 if (fs.existsSync(macBinary)) {
                     execCmd = macBinary;
                     execCwd = path.dirname(macBinary);
-                } else if (fs.existsSync(path.join(REPO_ROOT, 'build', 'mac', 'doom_mac'))) {
-                    execCmd = path.join(REPO_ROOT, 'build', 'mac', 'doom_mac');
-                    const wad = project.wadPath ? path.resolve(REPO_ROOT, project.wadPath) : path.join(REPO_ROOT, 'doom1.wad');
-                    execArgs = ['-iwad', wad];
+                    const embeddedWad = path.join(appPath, 'Contents', 'Resources', 'game.wad');
+                    if (fs.existsSync(embeddedWad)) {
+                        execArgs = ['-iwad', embeddedWad];
+                    } else {
+                        const wad = resolveWadPath(project.wadPath);
+                        if (wad) execArgs = ['-iwad', wad];
+                    }
                 }
             } else if (process.platform === 'win32') {
-                const winDir = path.join(REPO_ROOT, 'build', 'projects', project.id, 'win');
+                const winDir = path.join(WORKSPACE_ROOT, 'build', 'projects', project.id, 'win');
                 const safeTitle = project.title.replace(/[^a-zA-Z0-9_-]/g, '_');
                 const winExe = path.join(winDir, `${safeTitle}.exe`);
                 if (!fs.existsSync(winExe)) {
@@ -230,9 +279,11 @@ const server = http.createServer(async (req, res) => {
                 if (fs.existsSync(winExe)) {
                     execCmd = winExe;
                     execCwd = winDir;
+                    const wad = resolveWadPath(project.wadPath);
+                    if (wad) execArgs = ['-iwad', wad];
                 }
             } else {
-                const linuxDir = path.join(REPO_ROOT, 'build', 'projects', project.id, 'linux');
+                const linuxDir = path.join(WORKSPACE_ROOT, 'build', 'projects', project.id, 'linux');
                 const linuxBin = path.join(linuxDir, project.id);
                 if (!fs.existsSync(linuxBin)) {
                     await buildLinux(project, (msg) => console.log(msg));
@@ -240,6 +291,8 @@ const server = http.createServer(async (req, res) => {
                 if (fs.existsSync(linuxBin)) {
                     execCmd = linuxBin;
                     execCwd = linuxDir;
+                    const wad = resolveWadPath(project.wadPath);
+                    if (wad) execArgs = ['-iwad', wad];
                 }
             }
 
@@ -311,6 +364,8 @@ server.listen(PORT, '127.0.0.1', () => {
     const url = `http://127.0.0.1:${PORT}`;
     console.log(`=======================================================`);
     console.log(`  HRGZDevEngine Studio - Game Creator & Compiler`);
+    console.log(`  Engine Source: ${ENGINE_ROOT}`);
+    console.log(`  User Workspace: ${WORKSPACE_ROOT}`);
     console.log(`  Dashboard running at: ${url}`);
     console.log(`=======================================================`);
 
@@ -322,4 +377,3 @@ server.listen(PORT, '127.0.0.1', () => {
         exec(openCommand, () => {});
     }
 });
-
